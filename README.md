@@ -1,5 +1,6 @@
 # biblical-transliteration
 
+[![PyPI](https://img.shields.io/pypi/v/biblical-transliteration.svg)](https://pypi.org/project/biblical-transliteration/)
 [![tests](https://github.com/curran-gehring/biblical-transliteration/actions/workflows/test.yml/badge.svg)](https://github.com/curran-gehring/biblical-transliteration/actions/workflows/test.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://github.com/curran-gehring/biblical-transliteration)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
