@@ -35,7 +35,7 @@ HEBREW_CONSONANTS = {
     '\u05D4': ('h', 'h', 'h'),     # He ה
     '\u05D5': ('w', 'v', 'v'),     # Vav ו
     '\u05D6': ('z', 'z', 'z'),     # Zayin ז
-    '\u05D7': ('ḥ', 'ḥ', 'ḥ'),     # Chet ח
+    '\u05D7': ('ḥ', 'ḥ', 'ch'),    # Chet ח → 'ch' (phonetic; SBL keeps ḥ)
     '\u05D8': ('ṭ', 't', 't'),     # Tet ט
     '\u05D9': ('y', 'y', 'y'),     # Yod י
     '\u05DA': ('k', 'kh', 'kh'),   # Final Kaf ך
@@ -648,8 +648,12 @@ class HebrewTransliterator:
         
         # He as mater lectionis (silent at end of word after vowel)
         if char == '\u05D4':  # He
-            # If preserve_final_he is True, don't treat as mater lectionis
-            if self.options.preserve_final_he:
+            # If preserve_final_he is True, don't treat as mater lectionis —
+            # UNLESS phonetic scheme is active, where silent final he is
+            # always treated as mater so "SEH-lah" doesn't render as
+            # "SEH-lahh" (the final h is silent in pronunciation).
+            if (self.options.preserve_final_he
+                    and self.options.scheme != TransliterationScheme.PHONETIC):
                 return False
             
             # Check if this is word-final

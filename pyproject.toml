@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "biblical-transliteration"
-version = "0.2.0"
+version = "0.2.1"
 description = "Biblical Hebrew and Koine Greek transliteration in three schemes (SBL, Simple, Phonetic)."
 readme = "README.md"
 license = { file = "LICENSE" }
