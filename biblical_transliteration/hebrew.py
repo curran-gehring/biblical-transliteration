@@ -66,7 +66,7 @@ HEBREW_VOWELS = {
     '\u05B3': ('ŏ', 'o', 'o'),     # Hataf Qamats חֲטַף קָמָץ
     '\u05B4': ('i', 'i', 'ee'),     # Hiriq חִירִיק
     '\u05B5': ('ē', 'e', 'ey'),     # Tsere צֵירֵי
-    '\u05B6': ('e', 'e', 'eh'),     # Segol סֶגּוֹל
+    '\u05B6': ('e', 'e', 'e'),      # Segol סֶגּוֹל (short, like 'bed')
     '\u05B7': ('a', 'a', 'ah'),     # Patach פַּתָח
     '\u05B8': ('ā', 'a', 'ah'),     # Qamats קָמָץ (could be qamats gadol or qatan)
     '\u05B9': ('ō', 'o', 'oh'),     # Holam חוֹלָם
