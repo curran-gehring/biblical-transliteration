@@ -244,7 +244,16 @@ class HebrewTransliterator:
                 # the previous syllable since it's a postposed mater providing
                 # the vowel for the preceding consonant — e.g. ל + ו(holam) =
                 # `lo`, not `l` followed by a free-standing `o`.
-                only_vowel = bool(unit_text) and all(c.lower() in 'aeiou' for c in unit_text)
+                # Phonetic v0.2.0 digraphs ("oh", "ee", "oo", "ah", "eh",
+                # "ey") emit a vowel sound but contain a non-vowel
+                # letter ('h', 'y'), so the strict all-vowel check would
+                # reject them and the syllabifier would never merge a
+                # vav-holam "oh" with the preceding consonant. Recognize
+                # the known digraphs explicitly.
+                only_vowel = bool(unit_text) and (
+                    all(c.lower() in 'aeiou' for c in unit_text)
+                    or unit_text.lower() in {'oh', 'ee', 'oo', 'ah', 'eh', 'ey'}
+                )
                 if only_vowel and units and not units[-1][2]:
                     prev_text, prev_taam, _, prev_break = units[-1]
                     units[-1] = (prev_text + unit_text, prev_taam or has_taam, True, prev_break or ends_word)
@@ -551,11 +560,17 @@ class HebrewTransliterator:
                         break
             
             if is_word_final:
-                # Furtive patach: vowel comes BEFORE consonant
-                patach = 'a'
-                # Remove patach from vowels list and prepend it
-                vowels = [v for v in vowels if v != 'a']
-                return patach + consonant + ''.join(vowels)
+                # Furtive patach: vowel comes BEFORE consonant. The
+                # moved vowel is a transitional ultrashort 'a' regardless
+                # of scheme (traditional 'ach', 'ruach', 'shamea'). The
+                # FILTER target tracks the scheme's full patach mapping
+                # ('ah' in phonetic, 'a' in SBL/simple) so the would-
+                # have-been-emitted full vowel doesn't double-render
+                # at the tail of the consonant.
+                patach_emit = 'a'
+                patach_full = HEBREW_VOWELS['\u05B7'][self._scheme_index]
+                vowels = [v for v in vowels if v != patach_full]
+                return patach_emit + consonant + ''.join(vowels)
         
         # Also handle ה with mappiq (dagesh in final he) - it can have furtive patach
         if char == '\u05D4' and has_dagesh and '\u05B7' in marks:  # He with mappiq and patach
@@ -569,9 +584,12 @@ class HebrewTransliterator:
                         break
             
             if is_word_final:
-                patach = 'a'
-                vowels = [v for v in vowels if v != 'a']
-                return patach + consonant + ''.join(vowels)
+                # See chet/ayin branch above — emit short 'a',
+                # filter the scheme's full patach value.
+                patach_emit = 'a'
+                patach_full = HEBREW_VOWELS['\u05B7'][self._scheme_index]
+                vowels = [v for v in vowels if v != patach_full]
+                return patach_emit + consonant + ''.join(vowels)
 
         return consonant + ''.join(vowels)
     
