@@ -64,14 +64,14 @@ HEBREW_VOWELS = {
     '\u05B1': ('ĕ', 'e', 'e'),     # Hataf Segol חֲטַף סֶגּוֹל
     '\u05B2': ('ă', 'a', 'a'),     # Hataf Patach חֲטַף פַּתָח
     '\u05B3': ('ŏ', 'o', 'o'),     # Hataf Qamats חֲטַף קָמָץ
-    '\u05B4': ('i', 'i', 'i'),     # Hiriq חִירִיק
-    '\u05B5': ('ē', 'e', 'e'),     # Tsere צֵירֵי
-    '\u05B6': ('e', 'e', 'e'),     # Segol סֶגּוֹל
-    '\u05B7': ('a', 'a', 'a'),     # Patach פַּתָח
-    '\u05B8': ('ā', 'a', 'a'),     # Qamats קָמָץ (could be qamats gadol or qatan)
-    '\u05B9': ('ō', 'o', 'o'),     # Holam חוֹלָם
-    '\u05BA': ('ō', 'o', 'o'),     # Holam Haser (for vav)
-    '\u05BB': ('u', 'u', 'u'),     # Qibbuts קִבּוּץ
+    '\u05B4': ('i', 'i', 'ee'),     # Hiriq חִירִיק
+    '\u05B5': ('ē', 'e', 'ey'),     # Tsere צֵירֵי
+    '\u05B6': ('e', 'e', 'eh'),     # Segol סֶגּוֹל
+    '\u05B7': ('a', 'a', 'ah'),     # Patach פַּתָח
+    '\u05B8': ('ā', 'a', 'ah'),     # Qamats קָמָץ (could be qamats gadol or qatan)
+    '\u05B9': ('ō', 'o', 'oh'),     # Holam חוֹלָם
+    '\u05BA': ('ō', 'o', 'oh'),     # Holam Haser (for vav)
+    '\u05BB': ('u', 'u', 'oo'),     # Qibbuts קִבּוּץ
     '\u05BC': ('', '', ''),        # Dagesh דָּגֵשׁ (handled separately)
     '\u05BD': ('', '', ''),        # Meteg מֶתֶג (stress mark, usually ignored)
     '\u05BE': ('-', '-', '-'),     # Maqaf מַקָּף (hyphen)
@@ -81,7 +81,7 @@ HEBREW_VOWELS = {
     '\u05C3': ('', '', ''),        # Sof Pasuq — verse divider, not phoneme סוֹף פָּסוּק (end of verse)
     '\u05C4': ('', '', ''),        # Upper dot
     '\u05C5': ('', '', ''),        # Lower dot
-    '\u05C7': ('o', 'o', 'o'),     # Qamats Qatan (explicit, modern WLC)
+    '\u05C7': ('o', 'o', 'oh'),     # Qamats Qatan (explicit, modern WLC)
 }
 
 # BeGaD KeFaT letters change pronunciation with/without dagesh.
@@ -502,10 +502,10 @@ class HebrewTransliterator:
         # Handle vav as vowel letter (mater lectionis)
         if char == '\u05D5':  # Vav
             if '\u05B9' in marks or '\u05BA' in marks:  # Holam on vav
-                return 'ô' if self._scheme_index == 0 else 'o'
+                return 'ô' if self._scheme_index == 0 else ('oh' if self._scheme_index == 2 else 'o')
             elif has_dagesh and not any(v in marks for v in ['\u05B4', '\u05B5', '\u05B6', '\u05B7', '\u05B8']):
                 # Shuruk (vav with dagesh, no other vowel) = u
-                return 'û' if self._scheme_index == 0 else 'u'
+                return 'û' if self._scheme_index == 0 else ('oo' if self._scheme_index == 2 else 'u')
         
         # Note: Yod as mater lectionis is handled by _is_mater_lectionis() in transliterate()
         # If we get here, the yod is consonantal, so output it normally with any vowels
@@ -868,7 +868,7 @@ class HebrewTransliterator:
         # In phonetic mode, collapse consecutive identical vowels (actual pronunciation)
         # e.g., "vaarets" → "varets" (silent gutturals don't create audible hiatus)
         if self.options.scheme == TransliterationScheme.PHONETIC:
-            text = re.sub(r'([aeiou])\1+', r'\1', text)
+            text = re.sub(r'([aeiou])\1{2,}', r'\1', text)
         else:
             # In other modes, only clean up triple+ vowels (likely errors)
             text = re.sub(r'([aeiou])\1{2,}', r'\1', text)
