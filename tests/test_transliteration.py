@@ -42,30 +42,33 @@ def grk():
 # SBL outputs follow §5.1.1 academic: ʾ ḇ ḡ ḏ ḵ p̄ ṯ for spirant bgdkpt + ǝ for shewa.
 # Phonetic outputs are hyphen-separated syllables with the stressed syllable
 # uppercased. Stress comes from te'amim when present; otherwise ultima default.
+# Phonetic column = modern-Hebrew-for-English-readers: qamats/patach→ah,
+# holam→oh, qibbuts/shuruk→oo, hiriq male→ee but closed hiriq→i (0.2.7),
+# chet→kh (0.2.7), tsere→ey; stressed syllable upper-cased (te'am or ultima).
 HEBREW_CASES = [
-    ("בְּרֵאשִׁית", "bǝrēʾšîṯ", "bereshit", "be-re-SHIT",
-     "Vocal shewa (U+01DD), aleph kept in SBL, final spirant tav (ṯ); ultima"),
-    ("שְׁמַע",      "šǝmaʿ",   "shema",   "she-MA",
-     "Word-initial vocal shewa; ayin dropped in Simple/Phonetic"),
+    ("בְּרֵאשִׁית", "bǝrēʾšîṯ", "bereshit", "be-rey-SHEET",
+     "Vocal shewa (U+01DD), aleph kept in SBL, final spirant tav (ṯ); hiriq male → ee"),
+    ("שְׁמַע",      "šǝmaʿ",   "shema",   "she-MAH",
+     "Word-initial vocal shewa; ayin dropped in Simple/Phonetic; patach → ah"),
     ("כָּל־",       "kol-",    "kol-",    "KOL-",
      "Qamats qatan before maqaf"),
-    ("חָכְמָה",     "ḥoḵmāh",  "ḥokhmah", "ḥokh-MAH",
-     "Polysyllabic qamats qatan; ultima default (no te'am in input)"),
+    ("חָכְמָה",     "ḥoḵmāh",  "ḥokhmah", "khokh-MAH",
+     "Polysyllabic qamats qatan; chet → kh in Phonetic; ultima default"),
     ("מֶלֶךְ",      "meleḵ",   "melekh",  "me-LEKH",
      "Final kaf without dagesh = ḵ in SBL academic; ultima default"),
-    ("שָׁלוֹם",     "šālôm",   "shalom",  "sha-LOM",
-     "Holam male on vav; vowel-only mater attaches to previous syllable"),
-    ("דָּבָר",      "dāḇār",   "davar",   "da-VAR",
-     "Bet with dagesh (b), without dagesh = spirant ḇ; ultima"),
-    ("מִשְׁפָּט",   "mišpāṭ",  "mishpat", "mish-PAT",
-     "Polysyllabic final-syllable qamats = gadol (a); ultima"),
-    ("הַשָּׁמַיִם",  "haššāmayim", "hashamayim", "ha-sha-ma-YIM",
-     "Dagesh forte on shin: SBL doubles (šš), Simple/Phonetic skip digraph doubling"),
-    ("וַיֹּאמֶר",    "wayyōʾmer",  "vayyomer",   "va-yyo-MER",
-     "Dagesh forte on yod: doubles in all schemes (single-char digraph-safe)"),
+    ("שָׁלוֹם",     "šālôm",   "shalom",  "shah-LOHM",
+     "Holam male on vav (→ oh); qamats → ah; vowel-only mater attaches to prev"),
+    ("דָּבָר",      "dāḇār",   "davar",   "dah-VAHR",
+     "Bet with dagesh (b), without dagesh = spirant ḇ; both qamats → ah"),
+    ("מִשְׁפָּט",   "mišpāṭ",  "mishpat", "mish-PAHT",
+     "Closed hiriq → i (not ee); final qamats gadol → ah; ultima"),
+    ("הַשָּׁמַיִם",  "haššāmayim", "hashamayim", "hah-shah-mah-YIM",
+     "Dagesh forte on shin: SBL doubles (šš), Phonetic skips digraph doubling; closed hiriq → i"),
+    ("וַיֹּאמֶר",    "wayyōʾmer",  "vayyomer",   "vah-yyoh-MER",
+     "Dagesh forte on yod doubles; patach → ah, holam → oh"),
     # Words with te'amim — stress comes from the accent mark, not ultima default.
-    ("הַ/שָּׁמַ֖יִם", "ha/ššāmayim", "ha/shamayim", "ha-sha-MA-yim",
-     "WLC tipeha on shin-yod-mem syllable; Phonetic strips morpheme /"),
+    ("הַ/שָּׁמַ֖יִם", "ha/ššāmayim", "ha/shamayim", "hah-shah-MAH-yim",
+     "WLC tipeha on the ma syllable → penult stress; Phonetic strips morpheme /"),
     ("מֶ֣לֶךְ",       "meleḵ",   "melekh",  "ME-lekh",
      "WLC munach on mem-syllable → segolate penultima"),
 ]
@@ -76,6 +79,36 @@ def test_hebrew_golden(heb, surface, sbl, simple, phonetic, why):
     assert heb.transliterate(surface, scheme=HScheme.SBL) == sbl, why
     assert heb.transliterate(surface, scheme=HScheme.SIMPLE) == simple, why
     assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
+
+
+# Phonetic hiriq (0.2.7): long "ee" only when hiriq male (a yod mater follows);
+# a bare/closed-syllable hiriq is short "i".
+HIRIQ_CASES = [
+    ("מִשְׁפָּט", "mish-PAHT", "closed hiriq → i (mish, not meesh)"),
+    ("יִשְׂרָאֵל", "yis-rah-EYL", "closed hiriq → i (yis, not yees)"),
+    ("נָבִיא",   "nah-VEE",    "hiriq male before yod → ee"),
+    ("עִיר",     "EER",        "hiriq male before yod → ee (city)"),
+    ("שִׁיר",    "SHEER",      "hiriq male before yod → ee (song)"),
+]
+
+
+@pytest.mark.parametrize("surface,phonetic,why", HIRIQ_CASES)
+def test_hebrew_phonetic_hiriq_length(heb, surface, phonetic, why):
+    assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
+
+
+# Phonetic chet (0.2.7): ḥet → "kh", never English "ch" (which reads /tʃ/).
+CHET_CASES = [
+    ("רוּחַ",   "roo-AKH",   "furtive-patach chet → kh (spirit)"),
+    ("חָכְמָה", "khokh-MAH", "initial chet → kh (wisdom)"),
+    ("מָשִׁיחַ", "mah-shee-AKH", "final furtive chet → kh (messiah)"),
+]
+
+
+@pytest.mark.parametrize("surface,phonetic,why", CHET_CASES)
+def test_hebrew_phonetic_chet_is_kh(heb, surface, phonetic, why):
+    assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
+    assert "ch" not in heb.transliterate(surface, scheme=HScheme.PHONETIC), why
 
 
 def test_hebrew_scheme_override_does_not_persist(heb):

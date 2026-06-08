@@ -35,7 +35,7 @@ HEBREW_CONSONANTS = {
     '\u05D4': ('h', 'h', 'h'),     # He ה
     '\u05D5': ('w', 'v', 'v'),     # Vav ו
     '\u05D6': ('z', 'z', 'z'),     # Zayin ז
-    '\u05D7': ('ḥ', 'ḥ', 'ch'),    # Chet ח → 'ch' (phonetic; SBL keeps ḥ)
+    '\u05D7': ('ḥ', 'ḥ', 'kh'),    # Chet ח → 'kh' phonetic (English 'ch'=/tʃ/ is wrong); SBL/Simple keep ḥ
     '\u05D8': ('ṭ', 't', 't'),     # Tet ט
     '\u05D9': ('y', 'y', 'y'),     # Yod י
     '\u05DA': ('k', 'kh', 'kh'),   # Final Kaf ך
@@ -518,6 +518,13 @@ class HebrewTransliterator:
                             # Qamats qatan = 'o' in all schemes per SBLHS;
                             # ŏ is reserved for hataf qamats.
                             vowel = 'o'
+                    # Phonetic hiriq: long "ee" only when hiriq male (a yod mater
+                    # follows, e.g. נָבִיא → nah-VEE). A bare/closed-syllable hiriq
+                    # is short — render "i" so מִשְׁפָּט reads mish-PAHT, not
+                    # meesh-PAHT. (SBL/Simple keep their single 'i'.)
+                    if (mark == 'ִ' and self._scheme_index == 2
+                            and not self._followed_by_yod_mater(chars, index)):
+                        vowel = 'i'
                     # Special handling for shva
                     if mark == '\u05B0':  # Shva
                         if self._is_vocal_shva(char, marks, previous, chars, index):
@@ -625,7 +632,19 @@ class HebrewTransliterator:
                 return patach_emit + consonant + ''.join(vowels)
 
         return consonant + ''.join(vowels)
-    
+
+    def _followed_by_yod_mater(self, chars: list, index: int) -> bool:
+        """True if the consonant at ``index`` is immediately followed (after its
+        own combining marks) by a yod acting as a mater lectionis — i.e. the
+        vowel here is *male* (written long, e.g. hiriq male in נָבִיא)."""
+        if chars is None or index is None:
+            return False
+        j = index + 1
+        while j < len(chars) and self._is_combining_mark(chars[j]):
+            j += 1
+        return (j < len(chars) and chars[j] == 'י'
+                and self._is_mater_lectionis(chars, j))
+
     def _is_mater_lectionis(self, chars: list, index: int) -> bool:
         """
         Check if the character at index is a mater lectionis (vowel letter).
