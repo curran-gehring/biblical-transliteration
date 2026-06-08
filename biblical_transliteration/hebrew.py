@@ -446,7 +446,9 @@ class HebrewTransliterator:
         # Handle Shin/Sin
         if char == '\u05E9':  # Shin
             if has_sin_dot:
-                consonant = 's'  # Sin
+                # SBL academic keeps \u015Bin distinct from samek (s); only the
+                # ASCII Simple/Phonetic schemes collapse both to plain 's'.
+                consonant = '\u015B' if self._scheme_index == 0 else 's'  # Sin
             else:
                 consonant = 'š' if self._scheme_index == 0 else 'sh'  # Shin
         
@@ -758,25 +760,14 @@ class HebrewTransliterator:
                     return True
             return False
 
-        if not has_shewa and not has_full_vowel:
-            is_next_final = True
-            for k in range(next_consonant_idx + 1, len(chars)):
-                if self._is_hebrew(chars[k]):
-                    is_next_final = False
-                    break
-                if not self._is_combining_mark(chars[k]):
-                    break
-            if not is_next_final:
-                return False
-            if chars[next_consonant_idx] == "ה" and DAGESH not in next_marks:
-                return False
-            consonants_before = 0
-            for k in range(index - 1, -1, -1):
-                if self._is_hebrew(chars[k]):
-                    consonants_before += 1
-                elif not self._is_combining_mark(chars[k]):
-                    break
-            return consonants_before == 0
+        # NOTE: A bare closed monosyllable (CāC, e.g. אָב דָּם יָד עָם דָּג) is
+        # NOT inferred as qatan. Most such words are long-qamats gadol
+        # (ʾāḇ, dām, yāḏ, ʿām, dāḡ); whether a given one is qatan depends on
+        # lexical/morphological knowledge we do not have here. The earlier
+        # blanket "final monosyllable → qatan" heuristic corrupted far more
+        # words than it fixed, so qatan in this position must be signalled
+        # explicitly — via maqqef (handled above), an explicit Qamats Qatan
+        # point (U+05C7, mapped to 'o' directly), or hataf-qamats harmony.
 
         return False
     

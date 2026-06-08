@@ -111,6 +111,48 @@ def test_hebrew_divine_name_substitution_opt_in():
     assert t.transliterate("יְהוָה") == "Adonai"
 
 
+# (surface, sbl, why) — śin must stay distinct from samek in SBL academic.
+SIN_CASES = [
+    ("יִשְׂרָאֵל", "yiśrāʾēl", "śin dot → ś in SBL, not s (would collide with samek)"),
+    ("שָׂרָה",     "śārāh",    "word-initial śin → ś in SBL"),
+    ("עֵשָׂו",     "ʿēśāw",    "medial śin → ś"),
+]
+
+
+@pytest.mark.parametrize("surface,sbl,why", SIN_CASES)
+def test_hebrew_sin_distinct_in_sbl(heb, surface, sbl, why):
+    assert heb.transliterate(surface, scheme=HScheme.SBL) == sbl, why
+
+
+def test_hebrew_sin_collapses_to_s_in_ascii_schemes(heb):
+    """Simple/Phonetic intentionally fold śin → s (no diacritics)."""
+    assert heb.transliterate("יִשְׂרָאֵל", scheme=HScheme.SIMPLE) == "yisrael"
+
+
+# Bare closed monosyllables with qamats are qamats GADOL (long ā), not qatan.
+# The old blanket "final CāC → qatan" heuristic mis-rendered these as 'o'
+# (ʾoḇ, dom, yoḏ, ...), corrupting some of the most common words in the Bible.
+QAMATS_GADOL_MONOSYLLABLE_CASES = [
+    ("אָב",  "ʾāḇ",  "father — not ʾoḇ"),
+    ("דָּם",  "dām",  "blood — not dom"),
+    ("יָד",  "yāḏ",  "hand — not yoḏ"),
+    ("עָם",  "ʿām",  "people — not ʿom"),
+    ("דָּג",  "dāḡ",  "fish — not doḡ"),
+]
+
+
+@pytest.mark.parametrize("surface,sbl,why", QAMATS_GADOL_MONOSYLLABLE_CASES)
+def test_hebrew_bare_monosyllable_qamats_is_gadol(heb, surface, sbl, why):
+    assert heb.transliterate(surface, scheme=HScheme.SBL) == sbl, why
+
+
+def test_hebrew_legit_qamats_qatan_still_detected(heb):
+    """Removing the monosyllable heuristic must not regress real qatan cases:
+    maqqef (כָּל־), closed-unaccented shewa-nach (חָכְמָה), hataf harmony."""
+    assert heb.transliterate("כָּל־", scheme=HScheme.SBL) == "kol-"
+    assert heb.transliterate("חָכְמָה", scheme=HScheme.SBL) == "ḥoḵmāh"
+
+
 # ---------------------------------------------------------------------------
 # Greek golden table
 # ---------------------------------------------------------------------------
