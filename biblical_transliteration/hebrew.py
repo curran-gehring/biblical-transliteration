@@ -14,8 +14,28 @@ three schemes:
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional
+import functools
+import json
+import os
 import re
 import unicodedata
+
+
+@functools.lru_cache(maxsize=1)
+def _stress_lexicon() -> tuple:
+    """Lazily load the OSHB-derived stress lexicon bundled with the package.
+
+    Returns ``(pointed, skeleton)`` dicts mapping a Hebrew key to the stressed
+    syllable position counted from the end (1 = ultima, 2 = penult, …). Missing
+    or unreadable data degrades gracefully to empty maps (rules-only).
+    """
+    path = os.path.join(os.path.dirname(__file__), "data", "stress_lexicon.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data.get("pointed", {}), data.get("skeleton", {})
+    except (OSError, ValueError):
+        return {}, {}
 
 
 class TransliterationScheme(Enum):
@@ -284,7 +304,8 @@ class HebrewTransliterator:
         output = self._post_process(output)
 
         if is_phonetic and units:
-            output = self._format_phonetic_with_stress(output, units)
+            word_keys = self._hebrew_word_keys(hebrew_text)
+            output = self._format_phonetic_with_stress(output, units, word_keys)
 
         # Swap the divine-name sentinel for its final rendering last, so the
         # replacement text is immune to syllabification and stress markup.
@@ -337,7 +358,60 @@ class HebrewTransliterator:
             return n - 2  # penult
         return n - 1      # ultima
 
-    def _format_phonetic_with_stress(self, output: str, units: list) -> str:
+    @staticmethod
+    def _strip_teamim(s: str) -> str:
+        return ''.join(c for c in s if not ('֑' <= c <= '֯'))
+
+    def _hebrew_word_keys(self, text: str) -> list:
+        """Split ``text`` into Hebrew words (the same boundaries the phonetic
+        formatter uses) and return ``(pointed_key, skeleton_key)`` for each, so
+        a per-word stress can be looked up in the OSHB lexicon.
+
+        pointed_key = letters + vowels (te'amim and morpheme '/' removed);
+        skeleton_key = consonants only. Maqaf and any non-Hebrew delimiter end a
+        word; '/' and combining marks stay within it.
+        """
+        words: list = []
+        cur: list = []
+
+        def flush():
+            if cur:
+                w = ''.join(cur)
+                pointed = self._strip_teamim(w).replace('/', '')
+                skeleton = ''.join(c for c in w if self._is_hebrew(c))
+                words.append((pointed, skeleton))
+                cur.clear()
+
+        for ch in text:
+            if self._is_hebrew(ch):
+                cur.append(ch)
+            elif ch == '־':      # maqaf — word boundary
+                flush()
+            elif self._is_combining_mark(ch):
+                cur.append(ch)        # vowels / dagesh / te'amim stay with the word
+            elif ch == '/':
+                cur.append(ch)        # morpheme separator (stripped from the key)
+            else:
+                flush()               # whitespace, sentinel, punctuation
+        flush()
+        return words
+
+    @staticmethod
+    def _lexicon_stress(keys: tuple) -> Optional[int]:
+        """Look up a word's stress position (from the end) in the OSHB lexicon.
+        Tries the exact pointed form first, then the consonantal skeleton."""
+        if keys is None:
+            return None
+        pointed, skeleton = _stress_lexicon()
+        pk, sk = keys
+        if pk and pk in pointed:
+            return pointed[pk]
+        if sk and sk in skeleton:
+            return skeleton[sk]
+        return None
+
+    def _format_phonetic_with_stress(self, output: str, units: list,
+                                     word_keys: Optional[list] = None) -> str:
         """Hyphenate Phonetic output and capitalize the te'am-bearing syllable.
 
         Algorithm:
@@ -362,8 +436,12 @@ class HebrewTransliterator:
         if not words[-1]:
             words.pop()
 
+        # The lexicon override is keyed per word; only trust the alignment when
+        # the word counts match, otherwise degrade safely to rules-only.
+        use_keys = word_keys is not None and len(word_keys) == len(words)
+
         formatted_words: list[str] = []
-        for word_units in words:
+        for word_idx, word_units in enumerate(words):
             if not word_units:
                 continue
             # Merge consonant-only units into preceding syllable.
@@ -378,11 +456,17 @@ class HebrewTransliterator:
             if not syllables:
                 continue
 
-            # A te'am, when present, is authoritative. Otherwise fall back to
-            # Hebrew stress rules keyed on the syllable nucleus tags.
+            n = len(syllables)
+            # A te'am, when present, is authoritative. Otherwise prefer the
+            # OSHB lexicon (exact stress for known words), then fall back to the
+            # rule heuristic keyed on the syllable nucleus tags.
             stressed = next((idx for idx, (_, t, _) in enumerate(syllables) if t), None)
             if stressed is None:
-                stressed = self._rule_stress_index([v for _, _, v in syllables])
+                pos = self._lexicon_stress(word_keys[word_idx]) if use_keys else None
+                if pos is not None:
+                    stressed = max(0, min(n - 1, n - pos))
+                else:
+                    stressed = self._rule_stress_index([v for _, _, v in syllables])
 
             parts = [
                 (text.upper() if idx == stressed else text)

@@ -62,8 +62,8 @@ HEBREW_CASES = [
      "Bet with dagesh (b), without dagesh = spirant ḇ; both qamats → ah"),
     ("מִשְׁפָּט",   "mišpāṭ",  "mishpat", "mish-PAHT",
      "Closed hiriq → i (not ee); final qamats gadol → ah; ultima"),
-    ("הַשָּׁמַיִם",  "haššāmayim", "hashamayim", "hah-shah-mah-YIM",
-     "Dagesh forte on shin: SBL doubles (šš), Phonetic skips digraph doubling; closed hiriq → i"),
+    ("הַשָּׁמַיִם",  "haššāmayim", "hashamayim", "hah-shah-MAH-yim",
+     "Dagesh forte on shin: SBL doubles (šš), Phonetic skips digraph doubling; OSHB lexicon supplies penult even with no te'am"),
     ("וַיֹּאמֶר",    "wayyōʾmer",  "vayyomer",   "vah-YYOH-mer",
      "Dagesh forte on yod doubles; patach → ah, holam → oh; final segol → retracted penult"),
     # Words with te'amim — stress comes from the accent mark, not ultima default.
@@ -147,6 +147,26 @@ def test_hebrew_teamim_still_override_rules(heb):
     """An explicit te'am beats the rule-based fallback."""
     # munach on the mem-syllable of melek → penult (same as the rule here)
     assert heb.transliterate("מֶ֣לֶךְ", scheme=HScheme.PHONETIC) == "ME-lekh"
+
+
+def test_hebrew_lexicon_corrects_rule_miss(heb):
+    """The OSHB lexicon supplies penult for נַעַר, which the rules (a patach
+    helping vowel, indistinguishable from an ultima verb) get wrong alone."""
+    out = heb.transliterate("נַעַר", scheme=HScheme.PHONETIC)
+    assert out.split("-")[0].isupper(), out  # penult stress (first syllable)
+
+
+def test_hebrew_lexicon_alignment_with_divine_name(heb):
+    """Per-word lexicon lookup must stay aligned when a masked Tetragrammaton
+    sits between words."""
+    out = heb.transliterate("יְהוָה אֱלֹהִים", scheme=HScheme.PHONETIC)
+    assert out == "Adonai e-loh-HEEM", out
+
+
+def test_hebrew_lexicon_alignment_with_maqaf(heb):
+    """Maqaf-joined words each get their own stress."""
+    out = heb.transliterate("כָּל־הָאָרֶץ", scheme=HScheme.PHONETIC)
+    assert out == "KOL-hah-AH-rets", out
 
 
 def test_hebrew_scheme_override_does_not_persist(heb):

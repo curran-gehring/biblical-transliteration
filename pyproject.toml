@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "biblical-transliteration"
-version = "0.3.0"
+version = "0.3.1"
 description = "Biblical Hebrew and Koine Greek transliteration in three schemes (SBL, Simple, Phonetic)."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -55,6 +55,16 @@ Issues = "https://github.com/curran-gehring/biblical-transliteration/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["biblical_transliteration"]
+artifacts = ["biblical_transliteration/data/*.json"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "biblical_transliteration",
+    "tests",
+    "tools",
+    "README.md",
+    "LICENSE",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

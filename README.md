@@ -159,3 +159,11 @@ Transliteration rules were developed against the
 [Society of Biblical Literature Handbook of Style (2nd ed., 2014)](https://www.sbl-site.org/assets/pdfs/SBLHSrevised2_09.pdf)
 and validated against verses from the
 [CATSS](https://github.com/curran-gehring/catss) parallel corpus.
+
+The phonetic stress lexicon (`biblical_transliteration/data/stress_lexicon.json`)
+is derived from the cantillation accents of the Westminster Leningrad Codex as
+encoded by the **[Open Scriptures Hebrew Bible](https://hb.openscriptures.org/)**
+([morphhb](https://github.com/openscriptures/morphhb)), used under the
+[Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/).
+The bundled file contains only derived stress positions; regenerate it with
+[`tools/build_stress_lexicon.py`](tools/build_stress_lexicon.py).
