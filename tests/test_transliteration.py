@@ -173,18 +173,20 @@ def test_hebrew_legit_qamats_qatan_still_detected(heb):
 # Greek golden table
 # ---------------------------------------------------------------------------
 
+# Phonetic column = Erasmian (Mounce-style) spelled for American English readers:
+# η→ay, ι→ee, ου→oo, ευ→ew, ω→oh, χ→kh, φ→f; stressed syllable upper-cased.
 GREEK_CASES = [
     ("λόγος",   "logos",   "logos",   "LO-gos",  "Plain word; oxytone-no-accent default → ultima"),
-    ("Ἰησοῦς",  "Iēsous",  "Iesous",  "I-e-SOUS",  "Initial smooth iota, ου, final sigma; perispomenon"),
-    ("πνεῦμα",  "pneuma",  "pneuma",  "PNEU-ma", "ευ diphthong with circumflex"),
-    ("υἱός",    "huios",   "huios",   "hui-OS",
-     "Rough breathing on SECOND vowel of diphthong (regression)"),
-    ("ἄγγελος", "angelos", "angelos", "AN-ge-los", "γγ → ng nasal; gamma nasal splits at syllable break"),
-    ("ῥῆμα",    "rhēma",   "rhema",   "RHE-ma",  "Initial rho with rough breathing"),
-    ("αἷμα",    "haima",   "haima",   "HAI-ma",
-     "Diphthong + rough breathing on iota (regression)"),
-    ("εὑρίσκω", "heuriskō", "heurisko", "heu-RIS-ko",
-     "Diphthong εὑ with rough breathing on second vowel (regression)"),
+    ("Ἰησοῦς",  "Iēsous",  "Iesous",  "Ee-ay-SOOS",  "Erasmian ι→ee, η→ay, ου→oo; perispomenon stress"),
+    ("πνεῦμα",  "pneuma",  "pneuma",  "PNEW-mah", "ευ→ew (few), α→ah; circumflex stress"),
+    ("υἱός",    "huios",   "huios",   "hwee-OS",
+     "Rough breathing on SECOND vowel of diphthong; υι→wee"),
+    ("ἄγγελος", "angelos", "angelos", "AHN-geh-los", "γγ → ng nasal; gamma nasal splits at syllable break"),
+    ("ῥῆμα",    "rhēma",   "rhema",   "RHAY-mah",  "Initial rho with rough breathing; η→ay"),
+    ("αἷμα",    "haima",   "haima",   "HAI-mah",
+     "Diphthong + rough breathing on iota; αι→ai (aisle)"),
+    ("εὑρίσκω", "heuriskō", "heurisko", "hew-REES-koh",
+     "Diphthong εὑ with rough breathing on second vowel; ι→ee, ω→oh"),
 ]
 
 
@@ -193,6 +195,31 @@ def test_greek_golden(grk, surface, sbl, simple, phonetic, why):
     assert grk.transliterate(surface, scheme=GScheme.SBL) == sbl, why
     assert grk.transliterate(surface, scheme=GScheme.SIMPLE) == simple, why
     assert grk.transliterate(surface, scheme=GScheme.PHONETIC) == phonetic, why
+
+
+# Erasmian phonetic spot-checks for the mappings rebuilt in 0.2.6.
+# (surface, expected_phonetic, why)
+GREEK_ERASMIAN_CASES = [
+    ("ἀγάπη",  "ah-GAH-pay", "η→ay (obey), not bare e → 'agap' read as 'uh-gape'"),
+    ("ψυχή",   "psoo-KHAY",  "χ→kh (not ch=/tʃ/), υ→oo, η→ay"),
+    ("θεός",   "theh-OS",    "ε→eh, ο→o, θ→th"),
+    ("φῶς",    "FOHS",       "φ→f, ω→oh"),
+    ("εἰρήνη", "ay-RAY-nay", "ει→ay and η→ay both render the long-a sound"),
+    ("κύριος", "KOO-ree-os", "υ→oo, ι→ee"),
+    ("ἀρχῇ",   "ahr-KHAY",   "χ→kh; iota subscript is silent in Erasmian"),
+    ("ζωή",    "zoh-AY",     "ω→oh, η→ay"),
+]
+
+
+@pytest.mark.parametrize("surface,phonetic,why", GREEK_ERASMIAN_CASES)
+def test_greek_erasmian_phonetic(grk, surface, phonetic, why):
+    assert grk.transliterate(surface, scheme=GScheme.PHONETIC) == phonetic, why
+
+
+def test_greek_phonetic_iota_subscript_silent(grk):
+    """Erasmian does not pronounce subscript iota; Simple still appends 'i'."""
+    assert grk.transliterate("τῇ", scheme=GScheme.PHONETIC) == "TAY"
+    assert grk.transliterate("τῇ", scheme=GScheme.SIMPLE).endswith("i")
 
 
 def test_greek_iota_subscript_distinct_from_diphthong(grk):

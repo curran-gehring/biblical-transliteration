@@ -7,8 +7,12 @@ transliteration in three schemes:
   for eta/omega, proper handling of breathing marks, iota subscript, and
   diphthongs in their canonical forms (αι→ai, ει→ei, οι→oi, υι→ui).
 - ``SIMPLE`` — ASCII-friendly approximation (no macrons).
-- ``PHONETIC`` — Koine/Erasmian pronunciation cues (β→b not modern v,
-  φ→ph not modern f, υ→u in diphthongs).
+- ``PHONETIC`` — Erasmian (Mounce-style seminary) pronunciation spelled so a
+  native American English reader lands near the right sound, with the stressed
+  syllable upper-cased. Pronunciation legend:
+      ah=father  eh=met  ay=obey  ee=see  o=lot  oh=tone  oo=food
+      ai=aisle  ay=eight  oy=oil  ow=cow  ew=few  oo=food
+      th=thin  kh=k (loch)  f=φ  ks=ξ  ps=ψ  g=hard g  h-=rough breathing
 
 Handles breathing marks, accents, iota subscript, diphthongs, and the
 contextual rules that distinguish Koine from Modern or Classical Greek.
@@ -25,7 +29,7 @@ class TransliterationScheme(Enum):
     """Different transliteration schemes available."""
     SBL = "sbl"           # Society of Biblical Literature (academic, with macrons)
     SIMPLE = "simple"     # Simplified ASCII-friendly (no macrons)
-    PHONETIC = "phonetic" # Koine/Erasmian pronunciation (traditional biblical Greek)
+    PHONETIC = "phonetic" # Erasmian pronunciation spelled for English readers
 
 
 # =============================================================================
@@ -44,13 +48,13 @@ GREEK_CONSONANTS = {
     'Λ': ('L', 'L', 'L'),
     'Μ': ('M', 'M', 'M'),
     'Ν': ('N', 'N', 'N'),
-    'Ξ': ('X', 'X', 'X'),
+    'Ξ': ('X', 'X', 'Ks'),     # phonetic: "ks" (X reads /z/ word-initially)
     'Π': ('P', 'P', 'P'),
     'Ρ': ('R', 'R', 'R'),
     'Σ': ('S', 'S', 'S'),
     'Τ': ('T', 'T', 'T'),
-    'Φ': ('Ph', 'Ph', 'Ph'),   # Koine: aspirated /p/ (not modern /f/)
-    'Χ': ('Ch', 'Ch', 'Ch'),
+    'Φ': ('Ph', 'Ph', 'F'),    # phonetic: /f/ for English readers
+    'Χ': ('Ch', 'Ch', 'Kh'),   # phonetic: "kh" (ch would read /tʃ/ = wrong)
     'Ψ': ('Ps', 'Ps', 'Ps'),
     # Lowercase
     'β': ('b', 'b', 'b'),      # Koine: /b/ (not modern /v/)
@@ -62,35 +66,37 @@ GREEK_CONSONANTS = {
     'λ': ('l', 'l', 'l'),
     'μ': ('m', 'm', 'm'),
     'ν': ('n', 'n', 'n'),
-    'ξ': ('x', 'x', 'x'),
+    'ξ': ('x', 'x', 'ks'),     # phonetic: "ks"
     'π': ('p', 'p', 'p'),
     'ρ': ('r', 'r', 'r'),
     'σ': ('s', 's', 's'),
     'ς': ('s', 's', 's'),      # Final sigma
     'τ': ('t', 't', 't'),
-    'φ': ('ph', 'ph', 'ph'),   # Koine: aspirated /p/ (not modern /f/)
-    'χ': ('ch', 'ch', 'ch'),
+    'φ': ('ph', 'ph', 'f'),    # phonetic: /f/ for English readers
+    'χ': ('ch', 'ch', 'kh'),   # phonetic: "kh" (ch would read /tʃ/ = wrong)
     'ψ': ('ps', 'ps', 'ps'),
 }
 
 # Base vowels (without diacritics): (SBL, Simple, Phonetic/Koine)
 GREEK_VOWELS = {
+    # Phonetic column = Erasmian (Mounce-style seminary) spelled for an American
+    # English reader: η→ay (obey), ι→ee, υ→oo, ο→o, ω→oh, α→ah, ε→eh.
     # Uppercase
-    'Α': ('A', 'A', 'A'),
-    'Ε': ('E', 'E', 'E'),
-    'Η': ('Ē', 'E', 'E'),      # Eta - long e
-    'Ι': ('I', 'I', 'I'),
+    'Α': ('A', 'A', 'Ah'),
+    'Ε': ('E', 'E', 'Eh'),
+    'Η': ('Ē', 'E', 'Ay'),     # Eta - Erasmian long "ay" as in "obey"
+    'Ι': ('I', 'I', 'Ee'),
     'Ο': ('O', 'O', 'O'),
-    'Υ': ('Y', 'Y', 'U'),      # Upsilon - Koine: /u/ sound
-    'Ω': ('Ō', 'O', 'O'),      # Omega - long o
+    'Υ': ('Y', 'Y', 'Oo'),     # Upsilon - Erasmian /y/, English approx "oo"
+    'Ω': ('Ō', 'O', 'Oh'),     # Omega - long "oh"
     # Lowercase
-    'α': ('a', 'a', 'a'),
-    'ε': ('e', 'e', 'e'),
-    'η': ('ē', 'e', 'e'),      # Eta - long e
-    'ι': ('i', 'i', 'i'),
+    'α': ('a', 'a', 'ah'),
+    'ε': ('e', 'e', 'eh'),
+    'η': ('ē', 'e', 'ay'),     # Eta - Erasmian long "ay" as in "obey"
+    'ι': ('i', 'i', 'ee'),
     'ο': ('o', 'o', 'o'),
-    'υ': ('y', 'y', 'u'),      # Upsilon - Koine: /u/ sound
-    'ω': ('ō', 'o', 'o'),      # Omega - long o
+    'υ': ('y', 'y', 'oo'),     # Upsilon - Erasmian /y/, English approx "oo"
+    'ω': ('ō', 'o', 'oh'),     # Omega - long "oh"
 }
 
 # Diphthongs - order matters (check longer patterns first)
@@ -98,39 +104,41 @@ GREEK_VOWELS = {
 DIPHTHONGS = [
     # Improper diphthongs (with iota subscript) - handled separately
     # Proper diphthongs - Koine preserves diphthong sounds
-    ('αι', ('ai', 'ai', 'ai')),     # Koine: /ai/ diphthong
-    ('ει', ('ei', 'ei', 'ei')),     # Koine: /ei/ diphthong
-    ('οι', ('oi', 'oi', 'oi')),     # Koine: /oi/ diphthong
-    ('υι', ('ui', 'ui', 'ui')),     # SBLHS: ui (not yi)
-    ('αυ', ('au', 'au', 'au')),     # Koine: /au/ diphthong
-    ('ευ', ('eu', 'eu', 'eu')),     # Koine: /eu/ diphthong
-    ('ου', ('ou', 'ou', 'ou')),     # Koine: /ou/ → /u/ sound
-    ('ηυ', ('ēu', 'eu', 'eu')),     # SBLHS: ēu (not ēy)
+    # Phonetic column = Erasmian for English readers: αι "aisle", ει/ηυ "ay",
+    # οι "oy", αυ "ow" (cow), ευ "ew" (few), ου "oo", υι "wee".
+    ('αι', ('ai', 'ai', 'ai')),     # Erasmian /ai/ (aisle)
+    ('ει', ('ei', 'ei', 'ay')),     # Erasmian /ei/ → English "ay" (eight)
+    ('οι', ('oi', 'oi', 'oy')),     # Erasmian /oi/ (oil)
+    ('υι', ('ui', 'ui', 'wee')),    # SBLHS ui; Erasmian "wee"
+    ('αυ', ('au', 'au', 'ow')),     # Erasmian /au/ → English "ow" (cow)
+    ('ευ', ('eu', 'eu', 'ew')),     # Erasmian /eu/ → English "ew" (few)
+    ('ου', ('ou', 'ou', 'oo')),     # Erasmian /ou/ → "oo"
+    ('ηυ', ('ēu', 'eu', 'ayoo')),   # SBLHS ēu; Erasmian "ay-oo"
     # Uppercase versions
     ('Αι', ('Ai', 'Ai', 'Ai')),
-    ('Ει', ('Ei', 'Ei', 'Ei')),
-    ('Οι', ('Oi', 'Oi', 'Oi')),
-    ('Αυ', ('Au', 'Au', 'Au')),
-    ('Ευ', ('Eu', 'Eu', 'Eu')),
-    ('Ου', ('Ou', 'Ou', 'Ou')),
+    ('Ει', ('Ei', 'Ei', 'Ay')),
+    ('Οι', ('Oi', 'Oi', 'Oy')),
+    ('Αυ', ('Au', 'Au', 'Ow')),
+    ('Ευ', ('Eu', 'Eu', 'Ew')),
+    ('Ου', ('Ou', 'Ou', 'Oo')),
     ('ΑΙ', ('AI', 'AI', 'AI')),
-    ('ΕΙ', ('EI', 'EI', 'EI')),
-    ('ΟΙ', ('OI', 'OI', 'OI')),
-    ('ΑΥ', ('AU', 'AU', 'AU')),
-    ('ΕΥ', ('EU', 'EU', 'EU')),
-    ('ΟΥ', ('OU', 'OU', 'OU')),
+    ('ΕΙ', ('EI', 'EI', 'AY')),
+    ('ΟΙ', ('OI', 'OI', 'OY')),
+    ('ΑΥ', ('AU', 'AU', 'OW')),
+    ('ΕΥ', ('EU', 'EU', 'EW')),
+    ('ΟΥ', ('OU', 'OU', 'OO')),
 ]
 
 # Gamma nasals - γ before certain consonants
 GAMMA_NASALS = {
     'γγ': ('ng', 'ng', 'ng'),
-    'γκ': ('nk', 'nk', 'ng'),
-    'γξ': ('nx', 'nx', 'nx'),
-    'γχ': ('nch', 'nch', 'nch'),
+    'γκ': ('nk', 'nk', 'nk'),
+    'γξ': ('nx', 'nx', 'nks'),
+    'γχ': ('nch', 'nch', 'nkh'),
     'ΓΓ': ('NG', 'NG', 'NG'),
-    'ΓΚ': ('NK', 'NK', 'NG'),
-    'ΓΞ': ('NX', 'NX', 'NX'),
-    'ΓΧ': ('NCH', 'NCH', 'NCH'),
+    'ΓΚ': ('NK', 'NK', 'NK'),
+    'ΓΞ': ('NX', 'NX', 'NKS'),
+    'ΓΧ': ('NCH', 'NCH', 'NKH'),
 }
 
 
@@ -340,11 +348,12 @@ class GreekTransliterator:
             result = result.replace('Ē', 'E').replace('Ō', 'O')
 
         # Iota subscript: SBL renders as macron-only (ᾳ → ā) so it doesn\'t
-        # collide with the αι diphthong. Simple/Phonetic keep \'i\'.
+        # collide with the αι diphthong. Simple keeps \'i\'. Phonetic (Erasmian)
+        # leaves it silent — the subscript iota is not pronounced.
         if has_iota_subscript(char) and self.options.show_iota_subscript:
             if self.options.scheme == TransliterationScheme.SBL:
                 result = self._IOTA_SUBSCRIPT_MACRON.get(result, result)
-            else:
+            elif self.options.scheme == TransliterationScheme.SIMPLE:
                 result += 'i'
 
         if self.options.show_accents:
@@ -441,8 +450,11 @@ class GreekTransliterator:
                                 else:
                                     translit = 'h' + translit
 
-                            # Handle iota subscript (rare on diphthongs, but possible)
-                            if has_iota_subscript(char) and self.options.show_iota_subscript:
+                            # Handle iota subscript (rare on diphthongs, but possible).
+                            # Phonetic (Erasmian) leaves it silent.
+                            if (has_iota_subscript(char)
+                                    and self.options.show_iota_subscript
+                                    and self.options.scheme != TransliterationScheme.PHONETIC):
                                 translit += 'i'
 
                             result.append(translit)
