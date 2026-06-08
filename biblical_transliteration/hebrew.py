@@ -65,7 +65,7 @@ HEBREW_VOWELS = {
     '\u05B2': ('ă', 'a', 'a'),     # Hataf Patach חֲטַף פַּתָח
     '\u05B3': ('ŏ', 'o', 'o'),     # Hataf Qamats חֲטַף קָמָץ
     '\u05B4': ('i', 'i', 'ee'),     # Hiriq חִירִיק
-    '\u05B5': ('ē', 'e', 'ey'),     # Tsere צֵירֵי
+    '\u05B5': ('ē', 'e', 'ey'),     # Tsere צֵירֵי (phonetic 'ey' = tsere male; plain tsere → 'e' contextually)
     '\u05B6': ('e', 'e', 'e'),      # Segol סֶגּוֹל (short, like 'bed')
     '\u05B7': ('a', 'a', 'ah'),     # Patach פַּתָח
     '\u05B8': ('ā', 'a', 'ah'),     # Qamats קָמָץ (could be qamats gadol or qatan)
@@ -525,6 +525,13 @@ class HebrewTransliterator:
                     if (mark == 'ִ' and self._scheme_index == 2
                             and not self._followed_by_yod_mater(chars, index)):
                         vowel = 'i'
+                    # Phonetic tsere: plain tsere is modern /e/ (כֹּהֵן →
+                    # koh-HEN, not koh-HEYN). Only tsere male — a yod mater
+                    # follows — diphthongizes to "ey" (בֵּית → beyt, אֵין →
+                    # eyn). (SBL/Simple keep their single value.)
+                    if (mark == 'ֵ' and self._scheme_index == 2
+                            and not self._followed_by_yod_mater(chars, index)):
+                        vowel = 'e'
                     # Special handling for shva
                     if mark == '\u05B0':  # Shva
                         if self._is_vocal_shva(char, marks, previous, chars, index):

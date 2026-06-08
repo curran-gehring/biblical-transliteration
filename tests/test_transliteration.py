@@ -46,8 +46,8 @@ def grk():
 # holam→oh, qibbuts/shuruk→oo, hiriq male→ee but closed hiriq→i (0.2.7),
 # chet→kh (0.2.7), tsere→ey; stressed syllable upper-cased (te'am or ultima).
 HEBREW_CASES = [
-    ("בְּרֵאשִׁית", "bǝrēʾšîṯ", "bereshit", "be-rey-SHEET",
-     "Vocal shewa (U+01DD), aleph kept in SBL, final spirant tav (ṯ); hiriq male → ee"),
+    ("בְּרֵאשִׁית", "bǝrēʾšîṯ", "bereshit", "be-re-SHEET",
+     "Vocal shewa (U+01DD), aleph kept in SBL, final spirant tav (ṯ); plain tsere → e, hiriq male → ee"),
     ("שְׁמַע",      "šǝmaʿ",   "shema",   "she-MAH",
      "Word-initial vocal shewa; ayin dropped in Simple/Phonetic; patach → ah"),
     ("כָּל־",       "kol-",    "kol-",    "KOL-",
@@ -85,7 +85,7 @@ def test_hebrew_golden(heb, surface, sbl, simple, phonetic, why):
 # a bare/closed-syllable hiriq is short "i".
 HIRIQ_CASES = [
     ("מִשְׁפָּט", "mish-PAHT", "closed hiriq → i (mish, not meesh)"),
-    ("יִשְׂרָאֵל", "yis-rah-EYL", "closed hiriq → i (yis, not yees)"),
+    ("יִשְׂרָאֵל", "yis-rah-EL", "closed hiriq → i (yis, not yees); plain tsere → e"),
     ("נָבִיא",   "nah-VEE",    "hiriq male before yod → ee"),
     ("עִיר",     "EER",        "hiriq male before yod → ee (city)"),
     ("שִׁיר",    "SHEER",      "hiriq male before yod → ee (song)"),
@@ -109,6 +109,21 @@ CHET_CASES = [
 def test_hebrew_phonetic_chet_is_kh(heb, surface, phonetic, why):
     assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
     assert "ch" not in heb.transliterate(surface, scheme=HScheme.PHONETIC), why
+
+
+# Phonetic tsere (0.2.8): plain tsere is modern /e/; only tsere male (before a
+# yod mater) diphthongizes to "ey".
+TSERE_CASES = [
+    ("כֹּהֵן", "koh-HEN", "plain tsere → e (priest), not koh-HEYN"),
+    ("שֵׁם",   "SHEM",    "plain tsere → e (name)"),
+    ("בֵּית",  "BEYT",    "tsere male before yod → ey (house-construct)"),
+    ("אֵין",   "EYN",     "tsere male before yod → ey (there-is-not)"),
+]
+
+
+@pytest.mark.parametrize("surface,phonetic,why", TSERE_CASES)
+def test_hebrew_phonetic_tsere_context(heb, surface, phonetic, why):
+    assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
 
 
 def test_hebrew_scheme_override_does_not_persist(heb):
