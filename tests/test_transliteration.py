@@ -54,8 +54,8 @@ HEBREW_CASES = [
      "Qamats qatan before maqaf"),
     ("חָכְמָה",     "ḥoḵmāh",  "ḥokhmah", "khokh-MAH",
      "Polysyllabic qamats qatan; chet → kh in Phonetic; ultima default"),
-    ("מֶלֶךְ",      "meleḵ",   "melekh",  "me-LEKH",
-     "Final kaf without dagesh = ḵ in SBL academic; ultima default"),
+    ("מֶלֶךְ",      "meleḵ",   "melekh",  "ME-lekh",
+     "Final kaf without dagesh = ḵ in SBL academic; segolate (final segol) → penult even with no te'am"),
     ("שָׁלוֹם",     "šālôm",   "shalom",  "shah-LOHM",
      "Holam male on vav (→ oh); qamats → ah; vowel-only mater attaches to prev"),
     ("דָּבָר",      "dāḇār",   "davar",   "dah-VAHR",
@@ -64,8 +64,8 @@ HEBREW_CASES = [
      "Closed hiriq → i (not ee); final qamats gadol → ah; ultima"),
     ("הַשָּׁמַיִם",  "haššāmayim", "hashamayim", "hah-shah-mah-YIM",
      "Dagesh forte on shin: SBL doubles (šš), Phonetic skips digraph doubling; closed hiriq → i"),
-    ("וַיֹּאמֶר",    "wayyōʾmer",  "vayyomer",   "vah-yyoh-MER",
-     "Dagesh forte on yod doubles; patach → ah, holam → oh"),
+    ("וַיֹּאמֶר",    "wayyōʾmer",  "vayyomer",   "vah-YYOH-mer",
+     "Dagesh forte on yod doubles; patach → ah, holam → oh; final segol → retracted penult"),
     # Words with te'amim — stress comes from the accent mark, not ultima default.
     ("הַ/שָּׁמַ֖יִם", "ha/ššāmayim", "ha/shamayim", "hah-shah-MAH-yim",
      "WLC tipeha on the ma syllable → penult stress; Phonetic strips morpheme /"),
@@ -99,9 +99,9 @@ def test_hebrew_phonetic_hiriq_length(heb, surface, phonetic, why):
 
 # Phonetic chet (0.2.7): ḥet → "kh", never English "ch" (which reads /tʃ/).
 CHET_CASES = [
-    ("רוּחַ",   "roo-AKH",   "furtive-patach chet → kh (spirit)"),
+    ("רוּחַ",   "ROO-akh",   "furtive-patach chet → kh, and furtive → penult stress (spirit)"),
     ("חָכְמָה", "khokh-MAH", "initial chet → kh (wisdom)"),
-    ("מָשִׁיחַ", "mah-shee-AKH", "final furtive chet → kh (messiah)"),
+    ("מָשִׁיחַ", "mah-SHEE-akh", "final furtive chet → kh, furtive → penult (messiah)"),
 ]
 
 
@@ -124,6 +124,29 @@ TSERE_CASES = [
 @pytest.mark.parametrize("surface,phonetic,why", TSERE_CASES)
 def test_hebrew_phonetic_tsere_context(heb, surface, phonetic, why):
     assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
+
+
+# Rule-based stress when no te'am is present (0.3.0). Hebrew default is ultima;
+# segolates (final segol) and furtive-patach finals retract to the penult.
+STRESS_RULE_CASES = [
+    ("מֶלֶךְ",  "ME-lekh",   "segolate final segol → penult (king)"),
+    ("סֵפֶר",   "SE-fer",    "segolate final segol → penult (book)"),
+    ("בֹּקֶר",  "BOH-ker",   "segolate final segol → penult (morning)"),
+    ("רוּחַ",   "ROO-akh",   "furtive patach → penult (spirit)"),
+    ("שָׁלוֹם", "shah-LOHM", "non-segolate → ultima default (peace)"),
+    ("דָּבָר",  "dah-VAHR",  "non-segolate → ultima default (word)"),
+]
+
+
+@pytest.mark.parametrize("surface,phonetic,why", STRESS_RULE_CASES)
+def test_hebrew_phonetic_stress_rules(heb, surface, phonetic, why):
+    assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
+
+
+def test_hebrew_teamim_still_override_rules(heb):
+    """An explicit te'am beats the rule-based fallback."""
+    # munach on the mem-syllable of melek → penult (same as the rule here)
+    assert heb.transliterate("מֶ֣לֶךְ", scheme=HScheme.PHONETIC) == "ME-lekh"
 
 
 def test_hebrew_scheme_override_does_not_persist(heb):

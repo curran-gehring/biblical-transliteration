@@ -218,7 +218,7 @@ class HebrewTransliterator:
                         result.append(char)
                     if is_phonetic and units and not units[-1][3] and char != '/':
                         last = units[-1]
-                        units[-1] = (last[0], last[1], last[2], True)
+                        units[-1] = (last[0], last[1], last[2], True, last[4])
                 i += 1
                 continue
 
@@ -247,6 +247,16 @@ class HebrewTransliterator:
                 has_vowel = self._unit_has_vowel(unit_text, marks)
                 # If maqaf was in this consonant's marks, it ends a word.
                 ends_word = '־' in marks
+                # Coarse nucleus tag for rule-based stress when no te'am is
+                # present: 'furtive' (final-guttural furtive patach → penult,
+                # e.g. רוּחַ) or 'segol' (segolate/retracted penult, e.g. מֶלֶךְ,
+                # וַיֹּאמֶר). Everything else defaults to ultima.
+                if self._is_furtive_patach(char, marks, chars, i):
+                    vtag = 'furtive'
+                elif 'ֶ' in marks:  # segol U+05B6
+                    vtag = 'segol'
+                else:
+                    vtag = None
                 # Vowel-only emission (vav-with-holam, shuruk) belongs with
                 # the previous syllable since it's a postposed mater providing
                 # the vowel for the preceding consonant — e.g. ל + ו(holam) =
@@ -262,10 +272,11 @@ class HebrewTransliterator:
                     or unit_text.lower() in {'oh', 'ee', 'oo', 'ah', 'eh', 'ey'}
                 )
                 if only_vowel and units and not units[-1][2]:
-                    prev_text, prev_taam, _, prev_break = units[-1]
-                    units[-1] = (prev_text + unit_text, prev_taam or has_taam, True, prev_break or ends_word)
+                    prev_text, prev_taam, _, prev_break, prev_vtag = units[-1]
+                    units[-1] = (prev_text + unit_text, prev_taam or has_taam, True,
+                                 prev_break or ends_word, prev_vtag or vtag)
                 else:
-                    units.append((unit_text, has_taam, has_vowel, ends_word))
+                    units.append((unit_text, has_taam, has_vowel, ends_word, vtag))
 
             i = j
 
@@ -290,6 +301,41 @@ class HebrewTransliterator:
         # vowel point (excluding silent shewa). We approximate by checking the
         # text for any ASCII vowel character.
         return any(c in 'aeiou' for c in text)
+
+    def _is_furtive_patach(self, char: str, marks: list,
+                           chars: list = None, index: int = None) -> bool:
+        """Patach under a word-final guttural (ח/ע, or ה with mappiq) — the
+        furtive patach. Its vowel is an epenthetic glide, so stress falls on
+        the preceding syllable (רוּחַ → ROO-akh)."""
+        if 'ַ' not in marks:  # patach U+05B7
+            return False
+        is_guttural = char in ('ח', 'ע') or (char == 'ה' and DAGESH in marks)
+        if not is_guttural or chars is None or index is None:
+            return False
+        for k in range(index + 1, len(chars)):
+            if self._is_hebrew(chars[k]):
+                return False
+            if not self._is_combining_mark(chars[k]):
+                break
+        return True
+
+    @staticmethod
+    def _rule_stress_index(vtags: list) -> int:
+        """Best-guess stressed-syllable index when no te'am is available.
+
+        Hebrew default stress is ultima (milra). The common penult (milel)
+        exceptions we can detect from the vowel pattern alone:
+          - a furtive patach in the final syllable (rúaḥ, gāḇíaʿ);
+          - a final segol, the hallmark of segolate nouns (mélek, séfer) and of
+            retracted forms like wayyiqtol (wayyómer).
+        Fully unpointed input has no tags here, so it falls through to ultima.
+        """
+        n = len(vtags)
+        if n <= 1:
+            return n - 1
+        if vtags[-1] in ('furtive', 'segol'):
+            return n - 2  # penult
+        return n - 1      # ultima
 
     def _format_phonetic_with_stress(self, output: str, units: list) -> str:
         """Hyphenate Phonetic output and capitalize the te'am-bearing syllable.
@@ -321,24 +367,26 @@ class HebrewTransliterator:
             if not word_units:
                 continue
             # Merge consonant-only units into preceding syllable.
-            syllables: list[tuple[str, bool]] = []  # (text, taam)
-            for text, taam, has_vowel, _ in word_units:
+            syllables: list[tuple[str, bool, object]] = []  # (text, taam, vtag)
+            for text, taam, has_vowel, _, vtag in word_units:
                 if syllables and not has_vowel:
-                    prev_text, prev_taam = syllables[-1]
-                    syllables[-1] = (prev_text + text, prev_taam or taam)
+                    prev_text, prev_taam, prev_vtag = syllables[-1]
+                    syllables[-1] = (prev_text + text, prev_taam or taam, prev_vtag)
                 else:
-                    syllables.append((text, taam))
+                    syllables.append((text, taam, vtag))
 
             if not syllables:
                 continue
 
-            stressed = next((idx for idx, (_, t) in enumerate(syllables) if t), None)
+            # A te'am, when present, is authoritative. Otherwise fall back to
+            # Hebrew stress rules keyed on the syllable nucleus tags.
+            stressed = next((idx for idx, (_, t, _) in enumerate(syllables) if t), None)
             if stressed is None:
-                stressed = len(syllables) - 1  # ultima default
+                stressed = self._rule_stress_index([v for _, _, v in syllables])
 
             parts = [
                 (text.upper() if idx == stressed else text)
-                for idx, (text, _) in enumerate(syllables)
+                for idx, (text, _, _) in enumerate(syllables)
             ]
             formatted_words.append('-'.join(p for p in parts if p))
 
