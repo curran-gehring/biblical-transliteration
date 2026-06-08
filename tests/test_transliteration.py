@@ -98,17 +98,33 @@ def test_hebrew_three_schemes_produce_distinct_output(heb):
     # is that SBL (with macrons + ʾ + ǝ) is distinct from the others.
 
 
-def test_hebrew_divine_name_default_is_raw(heb):
-    """Default no longer substitutes 'Hashem' silently."""
-    out = heb.transliterate("יְהוָה", scheme=HScheme.SBL)
-    assert "Hashem" not in out
-    assert "Adonai" not in out
+def test_hebrew_divine_name_default_never_hybrid(heb):
+    """The Tetragrammaton must never render as the qere-vowel hybrid yǝhwāh
+    (the 'Jehovah' error). Default is the bare consonants per scheme; phonetic
+    speaks the qere 'Adonai'."""
+    assert heb.transliterate("יְהוָה", scheme=HScheme.SBL) == "yhwh"
+    assert heb.transliterate("יְהוָה", scheme=HScheme.SIMPLE) == "yhvh"
+    assert heb.transliterate("יְהוָה", scheme=HScheme.PHONETIC) == "Adonai"
+    # The discredited hybrid must not appear in any scheme.
+    for scheme in (HScheme.SBL, HScheme.SIMPLE, HScheme.PHONETIC):
+        out = heb.transliterate("יְהוָה", scheme=scheme).lower()
+        assert "hwā" not in out and "hwa" not in out
+
+
+def test_hebrew_divine_name_in_context_preserves_neighbors(heb):
+    """Masking/rendering must not disturb surrounding words or phonetic stress."""
+    assert heb.transliterate("יְהוָה שָׁלוֹם", scheme=HScheme.SBL) == "yhwh šālôm"
+    assert heb.transliterate("יְהוָה שָׁלוֹם", scheme=HScheme.PHONETIC) == "Adonai shah-LOHM"
 
 
 def test_hebrew_divine_name_substitution_opt_in():
-    opts = HOpts(divine_name_substitute="Adonai", scheme=HScheme.SBL)
-    t = HebrewTransliterator(opts)
-    assert t.transliterate("יְהוָה") == "Adonai"
+    """An explicit substitute wins in every scheme."""
+    for scheme in (HScheme.SBL, HScheme.SIMPLE, HScheme.PHONETIC):
+        opts = HOpts(divine_name_substitute="Adonai", scheme=scheme)
+        assert HebrewTransliterator(opts).transliterate("יְהוָה") == "Adonai"
+    # Including an uppercase consonantal form on demand.
+    opts = HOpts(divine_name_substitute="YHWH", scheme=HScheme.SBL)
+    assert HebrewTransliterator(opts).transliterate("יְהוָה") == "YHWH"
 
 
 # (surface, sbl, why) — śin must stay distinct from samek in SBL academic.

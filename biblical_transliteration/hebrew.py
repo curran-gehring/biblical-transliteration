@@ -122,7 +122,10 @@ class TransliterationOptions:
     handle_qamats_qatan: bool = True          # Detect qamats qatan (o) vs gadol (a)
     include_cantillation: bool = False        # Include te'amim marks
     preserve_final_he: bool = True            # Keep final he even when mater lectionis
-    divine_name_substitute: Optional[str] = None  # None=raw transliteration; "Hashem"/"Adonai" available as opt-in
+    # None = default policy: bare consonants (SBL yhwh / Simple yhvh), or the
+    # spoken "Adonai" in Phonetic — never the qere-vowel hybrid. Set a string
+    # ("Adonai"/"Hashem"/"YHWH"/"ʾăḏōnāy") to substitute it in every scheme.
+    divine_name_substitute: Optional[str] = None
 
 
 class HebrewTransliterator:
@@ -130,18 +133,16 @@ class HebrewTransliterator:
     Main class for Hebrew to Latin transliteration.
     
     Usage:
-        # Default - uses Adonai for the divine name
+        # Default — the Tetragrammaton renders as the bare consonants
+        # (SBL: yhwh, Simple: yhvh) and, in Phonetic, as the spoken "Adonai".
+        # It is NEVER rendered as the hybrid qere-vowel form (yǝhwāh).
         transliterator = HebrewTransliterator()
         result = transliterator.transliterate("בְּרֵאשִׁית")
-        print(result)  # bərēʾšît
-        
-        # Use Hashem instead of Adonai
-        from hebrew_transliteration import TransliterationOptions
-        options = TransliterationOptions(divine_name_substitute="Hashem")
-        transliterator = HebrewTransliterator(options)
-        
-        # Use original transliteration (yehvah/YHWH)
-        options = TransliterationOptions(divine_name_substitute=None)
+        print(result)  # bǝrēʾšîṯ
+
+        # Substitute a reading name for the divine name in every scheme:
+        from biblical_transliteration import HebrewOptions
+        options = HebrewOptions(divine_name_substitute="Adonai")  # or "Hashem", "YHWH", "ʾăḏōnāy"
         transliterator = HebrewTransliterator(options)
     """
     
@@ -186,7 +187,13 @@ class HebrewTransliterator:
                 self.options.scheme = saved
 
         hebrew_text = unicodedata.normalize("NFC", hebrew_text)
-        hebrew_text = self._substitute_divine_name(hebrew_text)
+        # Mask the Tetragrammaton with a sentinel BEFORE transliteration so the
+        # Masoretic qere vowels never get mechanically rendered into the hybrid
+        # "yǝhwāh" form (the classic Jehovah error). The sentinel is non-Hebrew,
+        # non-alpha, and non-combining, so it survives the main loop, the
+        # phonetic stress-formatter, and post-processing untouched; we swap it
+        # for the final rendering as the very last step.
+        hebrew_text = self._mask_divine_name(hebrew_text)
 
         # Per-consonant tracking for Phonetic syllabification + stress.
         # Each entry: (text_emitted, has_taam, has_vowel, is_word_break_after)
@@ -267,6 +274,11 @@ class HebrewTransliterator:
 
         if is_phonetic and units:
             output = self._format_phonetic_with_stress(output, units)
+
+        # Swap the divine-name sentinel for its final rendering last, so the
+        # replacement text is immune to syllabification and stress markup.
+        if self._DIVINE_SENTINEL in output:
+            output = output.replace(self._DIVINE_SENTINEL, self._render_divine_name())
 
         return output
 
@@ -405,36 +417,55 @@ class HebrewTransliterator:
 
         return spans
 
-    def _substitute_divine_name(self, text: str) -> str:
-        """
-        Replace Tetragrammaton with substitute before transliteration.
+    # Sentinel marking a masked Tetragrammaton through the pipeline. Private-use
+    # codepoint: not Hebrew, not a combining mark, and str.isalpha() is False, so
+    # neither the main loop nor the phonetic stress-formatter touch it.
+    _DIVINE_SENTINEL = ''
 
-        Returns modified text with divine name replaced by the configured substitute.
-        """
-        if self.options.divine_name_substitute is None:
-            return text  # Raw transliteration requested
+    def _mask_divine_name(self, text: str) -> str:
+        """Replace every Tetragrammaton span with the divine-name sentinel.
 
+        Always runs (regardless of options) so the qere-pointed form is never
+        transliterated mechanically. The sentinel is resolved to its final
+        rendering at the end of :meth:`transliterate`.
+        """
         chars = list(text)
         spans = self._find_tetragrammaton(chars)
 
         if not spans:
             return text
 
-        # Build result, replacing spans with placeholder
         result = []
         last_end = 0
-
         for start, end in spans:
-            # Add text before this span
             result.append(text[last_end:start])
-            # Add substitute
-            result.append(self.options.divine_name_substitute)
+            result.append(self._DIVINE_SENTINEL)
             last_end = end
-
-        # Add remaining text
         result.append(text[last_end:])
 
         return ''.join(result)
+
+    def _render_divine_name(self) -> str:
+        """The string the Tetragrammaton sentinel resolves to for this scheme.
+
+        - An explicit ``divine_name_substitute`` always wins (e.g. "Adonai",
+          "Hashem", "YHWH", "ʾăḏōnāy").
+        - Phonetic defaults to "Adonai" — the spoken qere — because the bare
+          consonants are unpronounceable, which is the whole point of phonetic.
+        - SBL/Simple default to the four bare consonants (yhwh / yhvh) via the
+          scheme's own consonant map. We deliberately never emit the hybrid
+          qere-vowel form (yǝhwāh): that is the Jehovah error.
+        """
+        if self.options.divine_name_substitute is not None:
+            return self.options.divine_name_substitute
+        if self.options.scheme == TransliterationScheme.PHONETIC:
+            return 'Adonai'
+        idx = self._scheme_index
+        # Yod-He-Vav-He through the scheme's consonant mapping.
+        return ''.join(
+            HEBREW_CONSONANTS[c][idx]
+            for c in ('י', 'ה', 'ו', 'ה')
+        )
 
     def _process_character(self, char: str, marks: list, previous: list, chars: list = None, index: int = None) -> str:
         """Process a single Hebrew character with its combining marks."""
@@ -871,13 +902,10 @@ class HebrewTransliterator:
     
     def _post_process(self, text: str) -> str:
         """Apply post-processing rules to the transliterated text."""
-        
-        # Handle divine name (YHWH) - in Phonetic mode, replace with "Adonai" (how it's spoken)
-        if self.options.scheme == TransliterationScheme.PHONETIC:
-            # Pattern for יהוה with various vowel patterns
-            pattern = r'\by[eə]?h[wv]a?h\b'
-            text = re.sub(pattern, 'Adonai', text, flags=re.IGNORECASE)
-        
+
+        # NOTE: the divine name is handled structurally via the sentinel in
+        # transliterate()/_render_divine_name(), not by a fragile regex here.
+
         # In phonetic mode, collapse consecutive identical vowels (actual pronunciation)
         # e.g., "vaarets" → "varets" (silent gutturals don't create audible hiatus)
         if self.options.scheme == TransliterationScheme.PHONETIC:
