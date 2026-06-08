@@ -240,10 +240,11 @@ class TransliterationOptions:
     """Configuration options for Greek transliteration."""
     scheme: TransliterationScheme = TransliterationScheme.SBL
     
-    # Breathing marks
+    # Breathing marks. Smooth breathing (ἀ) correctly produces no marker — the
+    # bare vowel — so there is no option for it; only rough breathing (ἁ → ha)
+    # is toggleable.
     show_rough_breathing: bool = True       # ἁ → ha (vs a)
-    show_smooth_breathing: bool = False     # ἀ → 'a or just a
-    
+
     # Vowel length
     mark_vowel_length: bool = True          # η → ē, ω → ō (SBL only)
     
