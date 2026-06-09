@@ -11,7 +11,7 @@ from biblical_transliteration.greek import (
     TransliterationScheme as GreekScheme,
 )
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"
 
 __all__ = [
     "HebrewTransliterator",

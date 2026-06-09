@@ -30,11 +30,19 @@ import json
 import os
 import re
 import sys
+import unicodedata
 from collections import Counter, defaultdict
 
 # Allow running from a source checkout without installing.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from biblical_transliteration import hebrew as _hebrew  # noqa: E402
 from biblical_transliteration.hebrew import transliterate_phonetic  # noqa: E402
+
+# The build measures what the RULES ALONE get wrong, so the runtime lexicon
+# must be disabled while building — otherwise a previously bundled lexicon
+# feeds its own answers into the "guess" and the corrections it supplied
+# silently drop out of the rebuilt file (circular contamination).
+_hebrew._stress_lexicon = lambda: ({}, {})
 
 TAAM_LO, TAAM_HI = "֑", "֯"      # te'amim / cantillation block
 CONS_LO, CONS_HI = "א", "ת"      # Hebrew consonant block
@@ -62,8 +70,14 @@ def strip_teamim(s: str) -> str:
 
 
 def pointed_key(s: str) -> str:
-    """Vowels + dagesh kept, accents and morpheme '/' removed."""
-    return strip_teamim(s).replace("/", "")
+    """Vowels + dagesh kept, accents and morpheme '/' removed.
+
+    NFC-normalized: the runtime NFC-normalizes its input before lookup, and
+    NFC reorders Hebrew marks (shin/sin dot vs vowel), so source-order keys
+    would silently never match. Normalizing here also merges votes for the
+    same word written with different mark orders.
+    """
+    return unicodedata.normalize("NFC", strip_teamim(s).replace("/", ""))
 
 
 def skeleton_key(s: str) -> str:

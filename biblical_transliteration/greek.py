@@ -19,10 +19,10 @@ contextual rules that distinguish Koine from Modern or Classical Greek.
 """
 
 from enum import Enum
-from dataclasses import dataclass, field
-from typing import Optional, List, Tuple
+from dataclasses import dataclass
+from typing import Optional, Tuple
+import functools
 import unicodedata
-import re
 
 
 class TransliterationScheme(Enum):
@@ -118,15 +118,19 @@ DIPHTHONGS = [
     ('Αι', ('Ai', 'Ai', 'Ai')),
     ('Ει', ('Ei', 'Ei', 'Ay')),
     ('Οι', ('Oi', 'Oi', 'Oy')),
+    ('Υι', ('Ui', 'Ui', 'Wee')),    # verse-initial Υἱός
     ('Αυ', ('Au', 'Au', 'Ow')),
     ('Ευ', ('Eu', 'Eu', 'Ew')),
     ('Ου', ('Ou', 'Ou', 'Oo')),
+    ('Ηυ', ('Ēu', 'Eu', 'Ayoo')),
     ('ΑΙ', ('AI', 'AI', 'AI')),
     ('ΕΙ', ('EI', 'EI', 'AY')),
     ('ΟΙ', ('OI', 'OI', 'OY')),
+    ('ΥΙ', ('UI', 'UI', 'WEE')),
     ('ΑΥ', ('AU', 'AU', 'OW')),
     ('ΕΥ', ('EU', 'EU', 'EW')),
     ('ΟΥ', ('OU', 'OU', 'OO')),
+    ('ΗΥ', ('ĒU', 'EU', 'AYOO')),
 ]
 
 # Gamma nasals - γ before certain consonants
@@ -149,17 +153,23 @@ GAMMA_NASALS = {
 # Greek Extended block contains precomposed characters with diacritics
 # We need to decompose and analyze them
 
-def get_base_and_diacritics(char: str) -> Tuple[str, set]:
+@functools.lru_cache(maxsize=2048)
+def get_base_and_diacritics(char: str) -> Tuple[str, frozenset]:
     """
     Decompose a Greek character into its base letter and diacritics.
-    Returns (base_char, set_of_diacritics)
+    Returns (base_char, frozenset_of_diacritics).
+
+    Cached: the transliterator calls this several times per character
+    (is-Greek check, vowel/consonant dispatch, accent lookup), and the
+    underlying unicodedata.normalize/name calls dominate the runtime.
+    The frozen return value keeps the shared cache entries immutable.
     """
     # Normalize to NFD (decomposed form)
     decomposed = unicodedata.normalize('NFD', char)
-    
+
     if not decomposed:
-        return char, set()
-    
+        return char, frozenset()
+
     base = decomposed[0]
     diacritics = set()
     
@@ -191,8 +201,8 @@ def get_base_and_diacritics(char: str) -> Tuple[str, set]:
             diacritics.add('macron')
         elif 'VRACHY' in name or 'BREVE' in name:
             diacritics.add('breve')
-    
-    return base, diacritics
+
+    return base, frozenset(diacritics)
 
 
 def has_rough_breathing(char: str) -> bool:
@@ -262,10 +272,6 @@ class TransliterationOptions:
     
     # Initial rho
     rough_initial_rho: bool = True          # ῥ → rh (rough breathing on rho)
-    
-    # Modern pronunciation options (phonetic scheme)
-    modern_beta: bool = True                # β → v (modern) vs b (ancient)
-    modern_upsilon: bool = False            # υ → i (modern) vs y (ancient)
 
 
 # =============================================================================
@@ -342,9 +348,10 @@ class GreekTransliterator:
 
         result = GREEK_VOWELS[base][idx]
 
-        if self.options.scheme == TransliterationScheme.SBL and self.options.mark_vowel_length:
-            pass  # η/ω already carry macron in the mapping
-        elif self.options.scheme != TransliterationScheme.SBL:
+        # η/ω carry their macron in the SBL mapping; strip it for the other
+        # schemes, and for SBL too when vowel-length marking is disabled.
+        if (self.options.scheme != TransliterationScheme.SBL
+                or not self.options.mark_vowel_length):
             result = result.replace('ē', 'e').replace('ō', 'o')
             result = result.replace('Ē', 'E').replace('Ō', 'O')
 
@@ -435,10 +442,17 @@ class GreekTransliterator:
                 # Check if next vowel has diaeresis (breaks diphthong)
                 if not has_diaeresis(next_char):
                     two_base = base + next_base
+                    matched_diphthong = False
 
                     for pattern, translits in DIPHTHONGS:
                         if two_base == pattern:
                             translit = translits[idx]
+
+                            # ηυ carries a macron in the SBL mapping; strip it
+                            # when vowel-length marking is disabled.
+                            if (self.options.scheme == TransliterationScheme.SBL
+                                    and not self.options.mark_vowel_length):
+                                translit = translit.replace('ē', 'e').replace('Ē', 'E')
 
                             # Breathing on a Greek diphthong is typographically written
                             # over the SECOND vowel (αἷ, οὕ, εὑ). Read both vowels.
@@ -463,13 +477,10 @@ class GreekTransliterator:
                                 accent = _has_accent(char) or _has_accent(next_char)
                                 units.append((translit, accent, True, False))
                             i += 2
+                            matched_diphthong = True
                             break
-                    else:
-                        # No diphthong match, continue to single char processing
-                        pass
 
-                    # Check if we consumed the diphthong
-                    if i > len(text) - 1 or (i < len(text) and text[i] != char):
+                    if matched_diphthong:
                         continue
 
             # Handle rho with rough breathing

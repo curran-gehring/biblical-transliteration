@@ -28,12 +28,20 @@ def _stress_lexicon() -> tuple:
     Returns ``(pointed, skeleton)`` dicts mapping a Hebrew key to the stressed
     syllable position counted from the end (1 = ultima, 2 = penult, …). Missing
     or unreadable data degrades gracefully to empty maps (rules-only).
+
+    Keys are NFC-normalized to match runtime lookups (transliterate() NFC-
+    normalizes its input, and NFC reorders Hebrew marks — e.g. shin-dot vs
+    vowel — so raw source-order keys would never match).
     """
     path = os.path.join(os.path.dirname(__file__), "data", "stress_lexicon.json")
     try:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
-        return data.get("pointed", {}), data.get("skeleton", {})
+        pointed = {
+            unicodedata.normalize("NFC", k): v
+            for k, v in data.get("pointed", {}).items()
+        }
+        return pointed, data.get("skeleton", {})
     except (OSError, ValueError):
         return {}, {}
 
@@ -140,7 +148,6 @@ class TransliterationOptions:
     preserve_dagesh_distinction: bool = True  # Distinguish b/v, k/kh, p/f
     mark_shva_na: bool = True                 # Mark vocal shva
     handle_qamats_qatan: bool = True          # Detect qamats qatan (o) vs gadol (a)
-    include_cantillation: bool = False        # Include te'amim marks
     preserve_final_he: bool = True            # Keep final he even when mater lectionis
     # None = default policy: bare consonants (SBL yhwh / Simple yhvh), or the
     # spoken "Adonai" in Phonetic — never the qere-vowel hybrid. Set a string
@@ -171,6 +178,11 @@ class HebrewTransliterator:
         TransliterationScheme.SIMPLE: 1,
         TransliterationScheme.PHONETIC: 2,
     }
+
+    # Whether the text currently being transliterated carries nikkud; set per
+    # call in transliterate(). Pointed default so helpers behave sensibly if
+    # ever reached outside transliterate().
+    _text_has_nikkud = True
 
     def __init__(self, options: Optional[TransliterationOptions] = None):
         self.options = options or TransliterationOptions()
@@ -207,6 +219,12 @@ class HebrewTransliterator:
                 self.options.scheme = saved
 
         hebrew_text = unicodedata.normalize("NFC", hebrew_text)
+        # Unpointed text carries no dagesh information, so begadkefat letters
+        # default to their stop values (b g d k p t) rather than spirantizing
+        # everywhere — word-initial spirants are the worse guess.
+        self._text_has_nikkud = any(
+            'ְ' <= c <= 'ּ' or c in ('ׁ', 'ׂ', 'ׇ') for c in hebrew_text
+        )
         # Mask the Tetragrammaton with a sentinel BEFORE transliteration so the
         # Masoretic qere vowels never get mechanically rendered into the hybrid
         # "yǝhwāh" form (the classic Jehovah error). The sentinel is non-Hebrew,
@@ -233,7 +251,16 @@ class HebrewTransliterator:
             # compound. In Phonetic mode the "/" is omitted altogether so the
             # output reads as the word is actually pronounced.
             if not self._is_hebrew(char):
-                if not self._is_combining_mark(char):
+                if char == '־':
+                    # Maqaf: word-joining punctuation (not a combining mark) —
+                    # render as a hyphen and mark the word break. This is the
+                    # single place maqaf is emitted, including after a masked
+                    # divine name or a skipped mater.
+                    result.append('-')
+                    if is_phonetic and units and not units[-1][3]:
+                        last = units[-1]
+                        units[-1] = (last[0], last[1], last[2], True, last[4])
+                elif not self._is_combining_mark(char):
                     if not (is_phonetic and char == '/'):
                         result.append(char)
                     if is_phonetic and units and not units[-1][3] and char != '/':
@@ -256,7 +283,7 @@ class HebrewTransliterator:
                 marks.append(chars[j])
                 j += 1
 
-            transliterated = self._process_character(char, marks, result, chars, i)
+            transliterated = self._process_character(char, marks, chars, i)
             result.append(transliterated)
 
             if is_phonetic:
@@ -502,7 +529,15 @@ class HebrewTransliterator:
         return '\u05D0' <= char <= '\u05EA'
     
     def _is_combining_mark(self, char: str) -> bool:
-        """Check if character is a Hebrew combining mark (vowel, dagesh, etc.)."""
+        """Check if character is a Hebrew combining mark (vowel, dagesh, etc.).
+
+        Maqaf (U+05BE) sits inside the points block but is punctuation \u2014 a
+        word boundary, not a mark on the preceding consonant. Excluding it
+        here makes every word-boundary scan (mater detection, shva rules,
+        furtive patach, qamats qatan, divine-name masking) treat it
+        correctly; the main loop renders it as a hyphen."""
+        if char == '\u05BE':
+            return False
         return '\u05B0' <= char <= '\u05C7' or '\u0591' <= char <= '\u05AF'
 
     def _find_tetragrammaton(self, chars: list) -> list:
@@ -537,9 +572,18 @@ class HebrewTransliterator:
 
                 if tetra_idx == 4:
                     # Found all four consonants - include trailing marks
+                    # (maqaf is not a combining mark, so it survives in output).
                     end = match_positions[-1] + 1
                     while end < len(chars) and self._is_combining_mark(chars[end]):
                         end += 1
+
+                    # YHWH never takes suffixes: a Hebrew letter right after
+                    # means this is a longer word, not the divine name.
+                    # (Leading letters are NOT checked — prefixed forms like
+                    # וַיהוָה / לַיהוָה / בַּיהוָה are real and must mask.)
+                    if end < len(chars) and self._is_hebrew(chars[end]):
+                        i += 1
+                        continue
 
                     spans.append((i, end))
                     i = end  # Skip past this match
@@ -550,7 +594,7 @@ class HebrewTransliterator:
         return spans
 
     # Sentinel marking a masked Tetragrammaton through the pipeline. Private-use
-    # codepoint: not Hebrew, not a combining mark, and str.isalpha() is False, so
+    # codepoint U+E000 (written as an escape so editors cannot mangle it): not Hebrew, not a combining mark, and str.isalpha() is False, so
     # neither the main loop nor the phonetic stress-formatter touch it.
     _DIVINE_SENTINEL = ''
 
@@ -599,7 +643,7 @@ class HebrewTransliterator:
             for c in ('י', 'ה', 'ו', 'ה')
         )
 
-    def _process_character(self, char: str, marks: list, previous: list, chars: list = None, index: int = None) -> str:
+    def _process_character(self, char: str, marks: list, chars: list = None, index: int = None) -> str:
         """Process a single Hebrew character with its combining marks."""
         
         has_dagesh = DAGESH in marks
@@ -615,13 +659,16 @@ class HebrewTransliterator:
             else:
                 consonant = 'š' if self._scheme_index == 0 else 'sh'  # Shin
         
-        # Handle BeGaD KeFaT with dagesh
+        # Handle BeGaD KeFaT with dagesh. Unpointed text has no dagesh
+        # information, so default to the stop value there.
         elif char in BEGADKEFAT and self.options.preserve_dagesh_distinction:
             with_dagesh, without_dagesh = BEGADKEFAT[char][self._scheme_index]
-            consonant = with_dagesh if has_dagesh else without_dagesh
+            consonant = with_dagesh if (has_dagesh or not self._text_has_nikkud) else without_dagesh
 
         # Handle final forms — route through BEGADKEFAT for final kaf/pe so spirants
-        # (e.g. ḵ in מֶלֶךְ) are emitted in SBL academic style.
+        # (e.g. ḵ in מֶלֶךְ) are emitted in SBL academic style. Finals keep the
+        # spirant default even in unpointed text: word-final position is
+        # post-vocalic, so the spirant is the right guess there.
         elif char in FINAL_FORMS:
             base_char = FINAL_FORMS[char]
             if base_char in BEGADKEFAT and self.options.preserve_dagesh_distinction:
@@ -638,9 +685,17 @@ class HebrewTransliterator:
         else:
             consonant = '?'
         
-        # Process vowels
+        # Process vowels. Qere-perpetuum stacking (יְרוּשָׁלִַם / pausal
+        # יְרוּשָׁלִָם): when hiriq is written together with patach or qamats
+        # under one consonant, the a-vowel is read first (-laim), regardless
+        # of mark order in the source.
+        vowel_marks = marks
+        if 'ִ' in marks and ('ַ' in marks or 'ָ' in marks):
+            vowel_marks = sorted(
+                marks, key=lambda m: m not in ('ַ', 'ָ')
+            )
         vowels = []
-        for mark in marks:
+        for mark in vowel_marks:
             if mark in HEBREW_VOWELS:
                 vowel = HEBREW_VOWELS[mark][self._scheme_index]
                 if vowel and mark != DAGESH:  # Don't add dagesh as vowel
@@ -666,7 +721,7 @@ class HebrewTransliterator:
                         vowel = 'e'
                     # Special handling for shva
                     if mark == '\u05B0':  # Shva
-                        if self._is_vocal_shva(char, marks, previous, chars, index):
+                        if self._is_vocal_shva(char, marks, chars, index):
                             vowels.append(vowel)
                         # Silent shva: don't add anything
                     else:
@@ -691,8 +746,14 @@ class HebrewTransliterator:
         if char == '\u05D5':  # Vav
             if '\u05B9' in marks or '\u05BA' in marks:  # Holam on vav
                 return 'ô' if self._scheme_index == 0 else ('oh' if self._scheme_index == 2 else 'o')
-            elif has_dagesh and not any(v in marks for v in ['\u05B4', '\u05B5', '\u05B6', '\u05B7', '\u05B8']):
-                # Shuruk (vav with dagesh, no other vowel) = u
+            elif (has_dagesh
+                    and not any('ְ' <= m <= 'ֻ' or m == 'ׇ' for m in marks)
+                    and not self._prev_consonant_has_vowel(chars, index)):
+                # Shuruk: vav+dagesh with no vowel point of its own, supplying /u/
+                # to a vowel-less preceding consonant (or word-initially, e.g.
+                # וּבְ). When the preceding consonant already carries a vowel — the
+                # qibbuts in the pual מְצֻוּוֹת — the dagesh is forte and the vav is a
+                # doubled consonant, not shuruk; fall through to gemination below.
                 return 'û' if self._scheme_index == 0 else ('oo' if self._scheme_index == 2 else 'u')
         
         # Note: Yod as mater lectionis is handled by _is_mater_lectionis() in transliterate()
@@ -783,6 +844,29 @@ class HebrewTransliterator:
             j += 1
         return (j < len(chars) and chars[j] == 'י'
                 and self._is_mater_lectionis(chars, j))
+
+    def _prev_consonant_has_vowel(self, chars: list, index: int) -> bool:
+        """Does the Hebrew consonant immediately before ``index`` (within the
+        same word) carry a vowel point of its own? Distinguishes shuruk (the
+        vav supplies /u/ to a vowel-less consonant) from a consonantal vav
+        doubled by dagesh forte after a real vowel."""
+        if chars is None or index is None:
+            return False
+        marks_between = []
+        for k in range(index - 1, -1, -1):
+            ch = chars[k]
+            if self._is_hebrew(ch):
+                return any(
+                    'ְ' <= m <= 'ֻ' or m == 'ׇ'
+                    for m in marks_between
+                )
+            if ch == '/':
+                continue  # morphhb morpheme separator stays within the word
+            if self._is_combining_mark(ch):
+                marks_between.append(ch)
+                continue
+            break  # word boundary (space, maqaf, punctuation)
+        return False
 
     def _is_mater_lectionis(self, chars: list, index: int) -> bool:
         """
@@ -920,13 +1004,26 @@ class HebrewTransliterator:
                 return True
             if self._is_hebrew(ch):
                 next_consonant_idx = k
+                # A maqqef beyond the next consonant signals qatan only when
+                # that consonant CLOSES the syllable. A final mater he/aleph
+                # leaves the syllable open, so the qamats stays gadol there
+                # (תּוֹרָה־, נָא־ — not toroh-/no-).
+                maqqef_after = False
                 for m in range(k + 1, len(chars)):
                     if chars[m] == MAQQEF:
-                        return True
+                        maqqef_after = True
+                        break
                     if self._is_combining_mark(chars[m]):
                         next_marks.append(chars[m])
                     else:
                         break
+                if maqqef_after:
+                    is_open_mater = (
+                        (ch == 'ה' and DAGESH not in next_marks)  # he without mappiq
+                        or ch == 'א'                              # silent aleph
+                    )
+                    if not is_open_mater:
+                        return True
                 break
             if not self._is_combining_mark(ch):
                 break
@@ -960,7 +1057,7 @@ class HebrewTransliterator:
 
         return False
     
-    def _is_vocal_shva(self, char: str, marks: list, previous: list, chars: list = None, index: int = None) -> bool:
+    def _is_vocal_shva(self, char: str, marks: list, chars: list = None, index: int = None) -> bool:
         """
         Determine if a shva is vocal (na) or silent (nach).
         
@@ -1064,18 +1161,12 @@ class HebrewTransliterator:
         # NOTE: the divine name is handled structurally via the sentinel in
         # transliterate()/_render_divine_name(), not by a fragile regex here.
 
-        # In phonetic mode, collapse consecutive identical vowels (actual pronunciation)
-        # e.g., "vaarets" → "varets" (silent gutturals don't create audible hiatus)
-        if self.options.scheme == TransliterationScheme.PHONETIC:
-            text = re.sub(r'([aeiou])\1{2,}', r'\1', text)
-        else:
-            # In other modes, only clean up triple+ vowels (likely errors)
-            text = re.sub(r'([aeiou])\1{2,}', r'\1', text)
-        
-        # Handle word boundaries
-        text = text.strip()
-        
-        return text
+        # Collapse runs of 3+ identical vowels: silent gutturals dropping out
+        # (Simple/Phonetic) can stack identical vowels; in SBL such runs only
+        # arise from transcription errors.
+        text = re.sub(r'([aeiou])\1{2,}', r'\1', text)
+
+        return text.strip()
     
     def transliterate_word(self, word: str) -> str:
         """Transliterate a single Hebrew word."""

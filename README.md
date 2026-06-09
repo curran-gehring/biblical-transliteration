@@ -40,7 +40,7 @@ Each transliterator supports three output styles via `TransliterationScheme`:
 | --- | --- | --- | --- |
 | `SBL` | `šālôm` | `logos` | Academic writing, scholarly publications, lexicon entries. Full SBL Handbook of Style diacritics. |
 | `SIMPLE` | `shalom` | `logos` | Reader-friendly Latin, no diacritics. Good for UI labels and casual contexts. |
-| `PHONETIC` | `sha-LOM` | `LO-gos` | Pronunciation cues with syllable boundaries and stress (capitalized syllable). For learners and audio-aligned uses. |
+| `PHONETIC` | `shah-LOHM` | `LO-gos` | Pronunciation cues with syllable boundaries and stress (capitalized syllable). Hebrew is spelled for modern-Hebrew pronunciation, Greek for Erasmian (Mounce-style seminary) pronunciation. For learners and audio-aligned uses. |
 
 ## What this handles
 
@@ -54,17 +54,24 @@ Each transliterator supports three output styles via `TransliterationScheme`:
 - Dagesh forte vs lene
 - Shin/sin dot disambiguation
 - Final letter forms (ך ם ן ף ץ)
-- Optional cantillation marks
+- Cantillation marks (te'amim) drive stress placement in the `PHONETIC`
+  scheme, backed by an OSHB-derived stress lexicon when no te'am is present
+- The Tetragrammaton is never rendered as the qere-vowel hybrid (`yǝhwāh`,
+  the "Jehovah" error) — bare consonants by default, or a substitute of
+  your choice (`Adonai`, `Hashem`, …)
 - Maqaf, meteg, sof pasuq
 
 **Koine Greek** (~800 lines of rules):
 
-- Diphthongs in canonical order (αι, ει, οι, υι, αυ, ευ, ηυ, ου)
+- Diphthongs in canonical order (αι, ει, οι, υι, αυ, ευ, ηυ, ου),
+  uppercase and lowercase
 - Breathing marks read off either vowel of a diphthong
-- Iota subscript (η̄ in SBL, dropped elsewhere)
+- Iota subscript (macron-only `ā ē ō` in SBL so it can't collide with the
+  αι diphthong; `i` appended in Simple; silent in Phonetic)
 - Final sigma (ς)
-- Koine-correct phonemes — β = `b` (not modern `v`),
-  φ = `ph` (not modern `f`), υ = `u` in diphthongs
+- Koine-correct phonemes in SBL/Simple — β = `b` (not modern `v`),
+  φ = `ph` (not modern `f`), υ = `u` in diphthongs; the `PHONETIC`
+  scheme is Erasmian, spelled for English readers (χ = `kh`, φ = `f`)
 - Eta/omega macron distinction in SBL
 - Accents and breathing marks normalized
 
@@ -111,7 +118,14 @@ the Python ecosystem at the time of writing.
   Koine and may not match what you expect for Classical or Modern texts.
 - **Qamats qatan detection is rule-based**, not perfect. Texts with
   explicit U+05C7 marking (modern WLC) work reliably; older texts using
-  the ambiguous U+05B8 may occasionally guess wrong.
+  the ambiguous U+05B8 may occasionally guess wrong. Meteg is not
+  consulted, so a meteg-disambiguated qamats gadol (e.g. חָֽכְמָה "she was
+  wise" vs חָכְמָה "wisdom") is still read as qatan.
+- **Unpointed Hebrew gets consonant-skeleton output.** BeGaD KeFaT letters
+  default to their stop values (`b g d k p t`) since there is no dagesh
+  information; final kaf/pe keep the spirant (post-vocalic position).
+  Nikkud detection is per `transliterate()` call, not per word: an
+  unpointed word mixed into pointed text uses the pointed defaults.
 
 ## Examples
 
@@ -125,7 +139,7 @@ for scheme in HebrewScheme:
     print(f"{scheme.value:10} {t.transliterate(word)}")
 # sbl        šālôm
 # simple     shalom
-# phonetic   sha-LOM
+# phonetic   shah-LOHM
 ```
 
 ```python

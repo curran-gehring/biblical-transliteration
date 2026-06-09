@@ -328,3 +328,98 @@ def test_greek_eta_upsilon_diphthong(grk):
 def test_greek_upsilon_iota_diphthong(grk):
     """υι should be ui (not yi)."""
     assert grk.transliterate("υἱ", scheme=GScheme.SBL).lower().endswith("ui")
+
+
+# ---------------------------------------------------------------------------
+# 0.4.0 regression tests
+# ---------------------------------------------------------------------------
+
+
+def test_package_level_imports():
+    """The README import path must work: aliases re-exported from the package."""
+    from biblical_transliteration import (
+        HebrewTransliterator as HT, HebrewScheme, HebrewOptions,
+        GreekTransliterator as GT, GreekScheme, GreekOptions, __version__,
+    )
+    assert HT(HebrewOptions(scheme=HebrewScheme.SIMPLE)).transliterate("שָׁלוֹם") == "shalom"
+    assert GT(GreekOptions(scheme=GreekScheme.SBL)).transliterate("λόγος") == "logos"
+    assert __version__
+
+
+def test_greek_uppercase_upsilon_iota_diphthong(grk):
+    """Verse-initial Υἱός must render the Υι diphthong (was 'Yhios')."""
+    assert grk.transliterate("Υἱός", scheme=GScheme.SBL) == "Huios"
+    assert grk.transliterate("Υἱός", scheme=GScheme.PHONETIC) == "Hwee-OS"
+    assert grk.transliterate("ΥΙΟΣ", scheme=GScheme.SBL) == "UIOS"
+
+
+def test_greek_repeated_diphthongs_no_stale_fallthrough(grk):
+    """After consuming a diphthong, the next position must get its own
+    diphthong check (the old guard fell through when text[i] == char)."""
+    assert grk.transliterate("αιαι", scheme=GScheme.PHONETIC) == "ai-AI"
+    assert grk.transliterate("ουου", scheme=GScheme.PHONETIC) == "oo-OO"
+    assert grk.transliterate("αιαι", scheme=GScheme.SBL) == "aiai"
+
+
+def test_greek_mark_vowel_length_off(grk):
+    """mark_vowel_length=False must actually strip macrons in SBL (was a no-op)."""
+    opts = GOpts(scheme=GScheme.SBL, mark_vowel_length=False)
+    t = GreekTransliterator(opts)
+    assert t.transliterate("ὥρα") == "hora"
+    assert t.transliterate("ηὐ") == "eu"  # diphthong path strips too
+
+
+def test_hebrew_lexicon_nfc_keys(heb):
+    """Lexicon lookups must survive NFC mark reordering (shin dot vs vowel).
+    מֹשֶׁה is stressed ultima (moh-SHE); the segolate rule alone guesses penult,
+    so only a successful lexicon hit produces the correct stress."""
+    assert heb.transliterate("מֹשֶׁה", scheme=HScheme.PHONETIC) == "moh-SHE"
+
+
+def test_hebrew_consonantal_vav_dagesh_not_shuruk(heb):
+    """A doubling vav after a real vowel (pual qibbuts) is ww, not shuruk û."""
+    assert heb.transliterate("מְצֻוּוֹת", scheme=HScheme.SBL) == "mǝṣuwwôṯ"
+    # Real shuruk still works, including word-initial conjunction.
+    assert heb.transliterate("רוּחַ", scheme=HScheme.SBL) == "rûaḥ"
+    assert heb.transliterate("וּבְנֵי", scheme=HScheme.SBL).startswith("û")
+
+
+def test_hebrew_jerusalem_qere_perpetuum(heb):
+    """Stacked hiriq+patach reads the a-vowel first (-laim, not -liam)."""
+    assert heb.transliterate("יְרוּשָׁלִַם", scheme=HScheme.SBL) == "yǝrûšālaim"
+
+
+def test_hebrew_unpointed_begadkefat_defaults_to_stops(heb):
+    """Unpointed text has no dagesh info; stops are the right default
+    (word-initial spirants were the worse guess)."""
+    assert heb.transliterate("בראשית", scheme=HScheme.SBL) == "brʾšyt"
+    # Pointed text is unaffected.
+    assert heb.transliterate("דָּבָר", scheme=HScheme.SBL) == "dāḇār"
+
+
+def test_hebrew_divine_name_with_maqaf(heb):
+    """Maqaf after the masked Tetragrammaton must survive (YHWH-nissi)."""
+    assert heb.transliterate("יְהוָה־נִסִּי", scheme=HScheme.SBL) == "yhwh-nissî"
+
+
+def test_hebrew_divine_name_prefixed_still_masks(heb):
+    """Prefixed forms (וַיהוָה) must still mask; suffixed sequences must not."""
+    assert heb.transliterate("וַיהוָה", scheme=HScheme.SBL) == "wayhwh"
+    # A Hebrew letter after the four consonants means it's a longer word.
+    out = heb.transliterate("בִּיהוָהם", scheme=HScheme.SBL)
+    assert "yhwh" not in out
+
+
+def test_hebrew_maqaf_is_word_boundary(heb):
+    """Maqaf is punctuation, not a combining mark: it must survive after
+    skipped maters and act as a word boundary for every contextual rule."""
+    # mater he before maqaf: hyphen kept, qamats stays GADOL (not toroh-)
+    assert heb.transliterate("תּוֹרָה־זוֹ", scheme=HScheme.SBL) == "tôrāh-zô"
+    assert heb.transliterate("תּוֹרָה־זוֹ", scheme=HScheme.PHONETIC) == "toh-RAH-ZOH"
+    # mater aleph before maqaf
+    assert heb.transliterate("הוּא־לִי", scheme=HScheme.SIMPLE) == "hu-li"
+    assert heb.transliterate("נָא־", scheme=HScheme.SBL) == "nāʾ-"
+    # furtive patach is word-final even before maqaf
+    assert heb.transliterate("רוּחַ־", scheme=HScheme.PHONETIC) == "ROO-akh-"
+    # closed syllable before maqaf still reads qatan
+    assert heb.transliterate("אֶת־כָּל־", scheme=HScheme.SBL) == "ʾeṯ-kol-"
