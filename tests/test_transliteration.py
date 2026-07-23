@@ -483,6 +483,34 @@ def test_greek_phonetic_omicron_and_eta_upsilon(grk):
     assert grk.transliterate("ηὔξησεν", scheme=GScheme.PHONETIC) == "EW-ksay-sehn"
 
 
+# 0.5.1: a mappiq-he's audible /h/ must not double against an h-final vowel
+# digraph (ah/oh/eh) — הַלְלוּיָהּ → "YAH", not "YAHH". Phonetic-only.
+MAPPIQ_HE_CASES = [
+    ("הַלְלוּיָהּ", "hah-leh-loo-YAH", "mappiq he after qamats-ah (halleluyah)"),
+    ("אֱלוֹהַּ",   "eh-LOH-ah",       "furtive-patach mappiq he (Eloah)"),
+    ("גָּבוֹהַּ",   "gah-VOH-ah",      "furtive-patach mappiq he (high)"),
+]
+
+
+@pytest.mark.parametrize("surface,phonetic,why", MAPPIQ_HE_CASES)
+def test_phonetic_mappiq_he_no_double_h(heb, surface, phonetic, why):
+    out = heb.transliterate(surface, scheme=HScheme.PHONETIC)
+    assert out == phonetic, why
+    assert "hh" not in out.lower(), why
+    # SBL is unaffected (keeps its own final-he rendering):
+    assert heb.transliterate("הַלְלוּיָהּ", scheme=HScheme.SBL) == "halǝlûyāh"
+
+
+# 0.5.1: qere-perpetuum -ayi- (defective יְרוּשָׁלִַם) gets a "y" glide so the
+# stacked patach+hiriq doesn't read as an "ah-i" hiatus ("LAHIM").
+def test_phonetic_qere_ayi_glide(heb):
+    out = heb.transliterate("יְרוּשָׁלִַם", scheme=HScheme.PHONETIC)
+    assert out == "yeh-roo-shah-LAHYIM", out
+    assert "LAHIM" not in out  # hiatus removed
+    # Plain closed hiriq (no stacked a-vowel) is untouched — no spurious glide:
+    assert heb.transliterate("מִשְׁפָּט", scheme=HScheme.PHONETIC) == "mish-PAHT"
+
+
 # ---------------------------------------------------------------------------
 # Greek golden table
 # ---------------------------------------------------------------------------
