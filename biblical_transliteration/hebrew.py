@@ -976,6 +976,21 @@ class HebrewTransliterator:
             
             if is_word_initial:
                 return False  # Word-initial yod is always consonantal
+
+            # A yod bearing its OWN dagesh (forte doubling, as in -iyya-) or
+            # its own vowel point is a consonant, not a mater lengthening the
+            # previous vowel. Without this guard a yod after hiriq/tsere/segol
+            # is always read as a mater, dropping the consonant AND its vowel
+            # (aliyah lost its -yah, Zion its -y-).
+            own_marks = []
+            for k in range(index + 1, len(chars)):
+                if self._is_combining_mark(chars[k]):
+                    own_marks.append(chars[k])
+                else:
+                    break
+            if any(m == DAGESH or '\u05B0' <= m <= '\u05BB' or m == '\u05C7'
+                   for m in own_marks):
+                return False  # consonantal yod, not a mater lectionis
             
             # After hiriq = hiriq male (long i)
             if '\u05B4' in prev_vowels:
