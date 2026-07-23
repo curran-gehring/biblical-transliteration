@@ -1152,6 +1152,14 @@ class HebrewTransliterator:
         if chars is None or index is None:
             return False
 
+        # A qamats immediately followed by a syllable-closing glide yod forms the
+        # /ay/ diphthong (laylah; בַּלָּיְלָה "in the night") and is therefore always
+        # qamats GADOL, never qatan — the glide yod's silent shewa must not be
+        # read as the "consonant + shewa nach" that closes a qatan syllable
+        # (which mis-rendered בַּלָּיְלָה as balloylāh / bah-LOHY-lah).
+        if self._followed_by_diphthong_yod(chars, index):
+            return False
+
         SHEWA = "ְ"
         HATAF_QAMATS = "ֳ"
         MAQQEF = "־"
@@ -1272,7 +1280,24 @@ class HebrewTransliterator:
 
         if is_word_initial:
             return True  # Word-initial shva is vocal
-        
+
+        # A syllable-closing glide yod (the /ay/ of laylah, בַּלָּיְלָה) carries a
+        # QUIESCENT (silent) shewa even after a qamats gadol — it must not be read
+        # as vocal just because the preceding long vowel would otherwise make a
+        # following shewa vocal. Only when the preceding consonant bears a
+        # patach/qamats (the real /ay/ context) and this yod is its glide.
+        if char == 'י':
+            for k in range(index - 1, -1, -1):
+                if self._is_hebrew(chars[k]):
+                    kmarks = [chars[m] for m in range(k + 1, index)
+                              if self._is_combining_mark(chars[m])]
+                    if (('ַ' in kmarks or 'ָ' in kmarks)
+                            and self._followed_by_diphthong_yod(chars, k)):
+                        return False
+                    break
+                if not self._is_combining_mark(chars[k]):
+                    break
+
         # Shva with dagesh (usually vocal - dagesh hazaq)
         if DAGESH in marks:
             return True

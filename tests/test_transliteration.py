@@ -511,6 +511,28 @@ def test_phonetic_qere_ayi_glide(heb):
     assert heb.transliterate("מִשְׁפָּט", scheme=HScheme.PHONETIC) == "mish-PAHT"
 
 
+# A QAMATS (not only a patach) before a syllable-closing glide yod forms the
+# /ay/ diphthong and is qamats GADOL. It was mis-read as qamats qatan — which
+# both rendered the vowel as o/oh AND (once fixed) tried to make the glide yod's
+# silent shewa vocal — so בַּלָּיְלָה came out balloylāh / bah-LOHY-lah instead of
+# ballāylāh / bah-LAI-lah (Ps 121:6 "in the night").
+QAMATS_GLIDE_YOD_CASES = [
+    # (surface, sbl, simple, phonetic, why)
+    ("בַּלָּיְלָה", "ballāylāh", "ballaylah", "bah-LAI-lah",
+     "qamats + glide yod = /ay/ diphthong (in the night), not qatan; glide shewa silent"),
+]
+
+
+@pytest.mark.parametrize("surface,sbl,simple,phonetic,why", QAMATS_GLIDE_YOD_CASES)
+def test_hebrew_qamats_before_glide_yod(heb, surface, sbl, simple, phonetic, why):
+    assert heb.transliterate(surface, scheme=HScheme.SBL) == sbl, why
+    assert heb.transliterate(surface, scheme=HScheme.SIMPLE) == simple, why
+    assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
+    # Real qamats qatan is unaffected (no glide yod follows):
+    assert heb.transliterate("חָכְמָה", scheme=HScheme.SBL) == "ḥoḵmāh", "qatan control"
+    assert heb.transliterate("כָּל־", scheme=HScheme.SBL) == "kol-", "qatan control"
+
+
 # ---------------------------------------------------------------------------
 # Greek golden table
 # ---------------------------------------------------------------------------
