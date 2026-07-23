@@ -171,6 +171,26 @@ def test_hebrew_consonantal_vav_holam(heb, surface, sbl, simple, phonetic, why):
     assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
 
 
+# Vocal shewa after qamats gadol (long ā): the shewa is na (vocal), not nach.
+# The fixed short/long vowel sets omitted qamats entirely, so these defaulted to
+# silent. Qamats qatan (short o) stays silent — reuse the qatan detector so both
+# readings agree with how the qamats vowel itself is rendered.
+SHEWA_AFTER_QAMATS_CASES = [
+    # (surface, sbl, simple, phonetic, why)
+    ("שָׁמְרוּ", "šāmǝrû", "shameru", "shah-me-ROO",
+     "qal perfect 3pl: qamats gadol → vocal shewa (they kept), not šāmrû"),
+    ("עָמְדוּ", "ʿāmǝḏû", "amedu",   "ah-me-DOO",
+     "qamats gadol → vocal shewa (they stood), not ʿāmḏû"),
+]
+
+
+@pytest.mark.parametrize("surface,sbl,simple,phonetic,why", SHEWA_AFTER_QAMATS_CASES)
+def test_hebrew_vocal_shewa_after_qamats_gadol(heb, surface, sbl, simple, phonetic, why):
+    assert heb.transliterate(surface, scheme=HScheme.SBL) == sbl, why
+    assert heb.transliterate(surface, scheme=HScheme.SIMPLE) == simple, why
+    assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
+
+
 # Negative controls: a vav+holam whose preceding consonant is vowel-less IS a
 # holam male mater and must remain a bare /ō/ (the fix must not regress these).
 HOLAM_MALE_MATER_CASES = [
@@ -183,6 +203,22 @@ HOLAM_MALE_MATER_CASES = [
 
 @pytest.mark.parametrize("surface,sbl,simple,phonetic,why", HOLAM_MALE_MATER_CASES)
 def test_hebrew_holam_male_mater_unchanged(heb, surface, sbl, simple, phonetic, why):
+    assert heb.transliterate(surface, scheme=HScheme.SBL) == sbl, why
+    assert heb.transliterate(surface, scheme=HScheme.SIMPLE) == simple, why
+    assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
+
+
+# Negative controls: qamats qatan (short o) → the following shewa stays SILENT
+# (closed syllable). The fix must not make these vocal.
+SHEWA_AFTER_QAMATS_QATAN_CASES = [
+    ("חָכְמָה", "ḥoḵmāh", "ḥokhmah", "khokh-MAH", "qamats qatan (wisdom) → silent shewa"),
+    ("אָכְלָה", "ʾoḵlāh", "okhlah",  "okh-LAH",   "qamats qatan (food) → silent shewa"),
+    ("קָדְשִׁי", "qoḏšî",  "qodshi",  "kod-SHEE",  "qamats qatan (my holiness) → silent shewa"),
+]
+
+
+@pytest.mark.parametrize("surface,sbl,simple,phonetic,why", SHEWA_AFTER_QAMATS_QATAN_CASES)
+def test_hebrew_shewa_after_qamats_qatan_stays_silent(heb, surface, sbl, simple, phonetic, why):
     assert heb.transliterate(surface, scheme=HScheme.SBL) == sbl, why
     assert heb.transliterate(surface, scheme=HScheme.SIMPLE) == simple, why
     assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
