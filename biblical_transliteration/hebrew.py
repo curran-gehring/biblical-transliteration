@@ -515,10 +515,18 @@ class HebrewTransliterator:
                 while i < len(output) and (output[i].isalpha() or output[i] in 'ʾʿ'):
                     i += 1
                 if word_idx < len(formatted_words):
-                    rebuilt.append(formatted_words[word_idx])
+                    word = formatted_words[word_idx]
                     word_idx += 1
                 else:
-                    rebuilt.append(output[start:i])
+                    word = output[start:i]
+                # An inseparable prefix fused directly onto the masked divine
+                # name (לַיהוָה → la-Adonai) is proclitic: it carries no stress
+                # of its own and needs a separator before the substitute that is
+                # spliced in later. A space or maqaf between the two already
+                # supplies both, so this only fires on direct fusion.
+                if i < len(output) and output[i] == self._DIVINE_SENTINEL:
+                    word = word.lower() + '-'
+                rebuilt.append(word)
             else:
                 rebuilt.append(ch)
                 i += 1
@@ -1173,9 +1181,11 @@ class HebrewTransliterator:
         LONG_VOWELS = {'\u05B5', '\u05B9', '\u05BA'}  # tsere, holam, holam haser
         
         prev_vowels = []
+        prev_consonant_idx = None
         for k in range(index - 1, -1, -1):
             if self._is_hebrew(chars[k]):
                 # Found previous consonant, collect its vowels
+                prev_consonant_idx = k
                 for m in range(k + 1, index):
                     if self._is_combining_mark(chars[m]) and chars[m] != DAGESH:
                         prev_vowels.append(chars[m])
@@ -1199,6 +1209,18 @@ class HebrewTransliterator:
         if '\u05B0' in prev_vowels:  # Previous consonant has shva
             return True  # Second of two consecutive shvas is vocal
         
+        # Qamats needs disambiguation the fixed sets can't provide: qamats
+        # gadol (long a) takes a vocal shva, qamats qatan (short o) a silent
+        # one (the qatan closes its syllable). Reuse the qatan detector on the
+        # consonant that actually bears the qamats, so the shva and the vowel
+        # agree -- '\u05d7\u05b8\u05db\u05b0\u05de\u05b8\u05d4' stays silent,
+        # '\u05e9\u05c1\u05b8\u05de\u05b0\u05e8\u05d5\u05bc' becomes vocal.
+        if '\u05B8' in prev_vowels and prev_consonant_idx is not None:
+            if (self.options.handle_qamats_qatan
+                    and self._is_qamats_qatan(chars, prev_consonant_idx)):
+                return False  # qamats qatan -> silent shva (closed syllable)
+            return True       # qamats gadol -> vocal shva
+
         # If previous vowel was short, shva is silent
         if any(v in SHORT_VOWELS for v in prev_vowels):
             return False
