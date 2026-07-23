@@ -126,6 +126,27 @@ def test_hebrew_phonetic_tsere_context(heb, surface, phonetic, why):
     assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
 
 
+# Phonetic patach diphthong (0.4.1): patach + a syllable-closing consonantal
+# yod is the /ay/ glide and must read "ay", not the patach's full "ah" + a
+# separate "y" ("ahy"/"LAHY"). A yod that carries its own vowel is a real
+# consonant onset (ba-YIT), NOT a glide, and must be left untouched.
+PATACH_YOD_DIPHTHONG_CASES = [
+    ("לַיְלָה",  "LAY-lah",     "patach + silent-shva yod → ay (night), not LAHY-lah"),
+    ("חַי",     "KHAY",        "patach + word-final yod → ay (living), not KHAHY"),
+    ("אֲדֹנָי", "a-doh-NAY",   "patach + final yod → ay (Lord), not a-doh-NAHY"),
+    ("סִינַי",  "see-NAY",     "patach + final yod → ay (Sinai), not see-NAHY"),
+    ("גַּיְא",   "GAY",         "patach + yod + silent alef → ay (valley), not GAHY"),
+    # Negative controls: yod carries its own vowel → consonant, unchanged.
+    ("בַּיִת",   "BAH-yit",     "patach + yod WITH hiriq → real consonant (house)"),
+    ("עַיִן",   "AH-yin",      "patach + yod WITH hiriq → real consonant (eye)"),
+]
+
+
+@pytest.mark.parametrize("surface,phonetic,why", PATACH_YOD_DIPHTHONG_CASES)
+def test_hebrew_phonetic_patach_yod_diphthong(heb, surface, phonetic, why):
+    assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
+
+
 # Rule-based stress when no te'am is present (0.3.0). Hebrew default is ultima;
 # segolates (final segol) and furtive-patach finals retract to the penult.
 STRESS_RULE_CASES = [

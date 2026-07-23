@@ -719,6 +719,18 @@ class HebrewTransliterator:
                     if (mark == 'ֵ' and self._scheme_index == 2
                             and not self._followed_by_yod_mater(chars, index)):
                         vowel = 'e'
+                    # Phonetic /ay/ diphthong: patach or qamats-gadol + a
+                    # syllable-closing consonantal yod is the glide (laylah →
+                    # LAY-lah, ḥay → KHAY, ʾadonai → a-doh-NAY, Sinai → see-NAY).
+                    # Emit the short "a" so the yod's "y" completes "ay"; the full
+                    # "ah" here mis-renders as "ahy" (LAHY). A yod with its own
+                    # vowel (bayit → BAH-yit) is excluded by
+                    # _followed_by_diphthong_yod(); qamats qatan (already 'o' via
+                    # the block above) is excluded so it never becomes "ay".
+                    if (mark in ('ַ', 'ָ') and self._scheme_index == 2
+                            and vowel != 'o'
+                            and self._followed_by_diphthong_yod(chars, index)):
+                        vowel = 'a'
                     # Special handling for shva
                     if mark == '\u05B0':  # Shva
                         if self._is_vocal_shva(char, marks, chars, index):
@@ -844,6 +856,37 @@ class HebrewTransliterator:
             j += 1
         return (j < len(chars) and chars[j] == 'י'
                 and self._is_mater_lectionis(chars, j))
+
+    def _followed_by_diphthong_yod(self, chars: list, index: int) -> bool:
+        """True if the consonant at ``index`` is immediately followed by a
+        consonantal yod that closes the syllable — one carrying no vowel of its
+        own beyond a silent shva. With a preceding patach this is the /ay/
+        diphthong (laylah, ḥay, ʾadonai, Sinai): the phonetic scheme renders it
+        "ay" rather than spelling the patach's full "ah" plus a separate glide
+        "y" ("ahy"/"LAHY"). A yod that carries its own vowel is a real consonant
+        onset (bayit → BAH-yit), and a yod mater (hiriq/tsere male) only
+        lengthens the vowel — neither is a diphthong glide, so both return False.
+        """
+        if chars is None or index is None:
+            return False
+        j = index + 1
+        while j < len(chars) and self._is_combining_mark(chars[j]):
+            j += 1
+        if j >= len(chars) or chars[j] != 'י':  # not a yod
+            return False
+        if self._is_mater_lectionis(chars, j):        # hiriq/tsere male, not a glide
+            return False
+        # The yod must be vowelless (bare, or a silent shva). Any real vowel
+        # point on it makes it a consonant onset (bayit, ayin), not a glide.
+        for k in range(j + 1, len(chars)):
+            m = chars[k]
+            if not self._is_combining_mark(m):
+                break
+            if m == 'ְ' or m == DAGESH:  # silent shva / dagesh — not a vowel
+                continue
+            if 'ֱ' <= m <= 'ֻ' or m == 'ׇ':  # any real vowel point
+                return False
+        return True
 
     def _prev_consonant_has_vowel(self, chars: list, index: int) -> bool:
         """Does the Hebrew consonant immediately before ``index`` (within the
