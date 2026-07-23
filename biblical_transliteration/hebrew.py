@@ -756,7 +756,19 @@ class HebrewTransliterator:
 
         # Handle vav as vowel letter (mater lectionis)
         if char == '\u05D5':  # Vav
-            if '\u05B9' in marks or '\u05BA' in marks:  # Holam on vav
+            has_holam_haser = '\u05BA' in marks  # holam haser FOR VAV
+            if '\u05B9' in marks or has_holam_haser:  # Holam on vav
+                # Consonantal vav bearing holam (vav = /w/,/v/ + o) vs. holam
+                # male (a mater supplying the *preceding* consonant's o). When
+                # that preceding consonant already carries its own vowel the vav
+                # can't be its mater -- it is a consonant + holam: an ayin with
+                # qamats + vav-holam reads 'awon'/'avon', not 'aon'. U+05BA
+                # (holam haser for vav) exists precisely to mark this consonantal
+                # reading, so it forces the consonant regardless of context.
+                if has_holam_haser or self._prev_consonant_has_vowel(chars, index):
+                    holam = HEBREW_VOWELS['\u05B9'][self._scheme_index]  # o / o / oh
+                    return consonant + holam
+                # Holam male: emit the plene o vowel only (the vav is silent).
                 return 'ô' if self._scheme_index == 0 else ('oh' if self._scheme_index == 2 else 'o')
             elif (has_dagesh
                     and not any('ְ' <= m <= 'ֻ' or m == 'ׇ' for m in marks)
