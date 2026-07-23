@@ -150,8 +150,8 @@ class TransliterationOptions:
     handle_qamats_qatan: bool = True          # Detect qamats qatan (o) vs gadol (a)
     preserve_final_he: bool = True            # Keep final he even when mater lectionis
     # None = default policy: bare consonants (SBL yhwh / Simple yhvh), or the
-    # spoken "Adonai" in Phonetic — never the qere-vowel hybrid. Set a string
-    # ("Adonai"/"Hashem"/"YHWH"/"ʾăḏōnāy") to substitute it in every scheme.
+    # reconstructed "yah-WEH" in Phonetic — never the qere-vowel hybrid. Set a
+    # string ("Adonai"/"Hashem"/"YHWH"/"ʾăḏōnāy") to substitute it in every scheme.
     divine_name_substitute: Optional[str] = None
 
 
@@ -161,8 +161,8 @@ class HebrewTransliterator:
     
     Usage:
         # Default — the Tetragrammaton renders as the bare consonants
-        # (SBL: yhwh, Simple: yhvh) and, in Phonetic, as the spoken "Adonai".
-        # It is NEVER rendered as the hybrid qere-vowel form (yǝhwāh).
+        # (SBL: yhwh, Simple: yhvh) and, in Phonetic, as the reconstructed
+        # "yah-WEH". It is NEVER rendered as the hybrid qere-vowel form (yǝhwāh).
         transliterator = HebrewTransliterator()
         result = transliterator.transliterate("בְּרֵאשִׁית")
         print(result)  # bǝrēʾšîṯ
@@ -640,9 +640,12 @@ class HebrewTransliterator:
         """The string the Tetragrammaton sentinel resolves to for this scheme.
 
         - An explicit ``divine_name_substitute`` always wins (e.g. "Adonai",
-          "Hashem", "YHWH", "ʾăḏōnāy").
-        - Phonetic defaults to "Adonai" — the spoken qere — because the bare
-          consonants are unpronounceable, which is the whole point of phonetic.
+          "Hashem", "YHWH", "ʾăḏōnāy") — the reverent spoken-qere readings are
+          opt-in.
+        - Phonetic defaults to the reconstructed pronunciation "yah-WEH"
+          (stress on the second syllable), because the bare consonants are
+          unpronounceable — the whole point of phonetic — and a consumer that
+          wants the reverent "Adonai"/"Hashem" reading asks for it explicitly.
         - SBL/Simple default to the four bare consonants (yhwh / yhvh) via the
           scheme's own consonant map. We deliberately never emit the hybrid
           qere-vowel form (yǝhwāh): that is the Jehovah error.
@@ -650,7 +653,7 @@ class HebrewTransliterator:
         if self.options.divine_name_substitute is not None:
             return self.options.divine_name_substitute
         if self.options.scheme == TransliterationScheme.PHONETIC:
-            return 'Adonai'
+            return 'yah-WEH'
         idx = self._scheme_index
         # Yod-He-Vav-He through the scheme's consonant mapping.
         return ''.join(

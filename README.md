@@ -57,8 +57,8 @@ Each transliterator supports three output styles via `TransliterationScheme`:
 - Cantillation marks (te'amim) drive stress placement in the `PHONETIC`
   scheme, backed by an OSHB-derived stress lexicon when no te'am is present
 - The Tetragrammaton is never rendered as the qere-vowel hybrid (`yǝhwāh`,
-  the "Jehovah" error) — bare consonants by default, or a substitute of
-  your choice (`Adonai`, `Hashem`, …)
+  the "Jehovah" error) — bare consonants by default (a reconstructed `yah-WEH`
+  in Phonetic), or a reverent substitute of your choice (`Adonai`, `Hashem`, …)
 - Maqaf, meteg, sof pasuq
 
 **Koine Greek** (~800 lines of rules):

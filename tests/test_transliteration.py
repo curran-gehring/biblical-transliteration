@@ -263,12 +263,12 @@ def test_hebrew_shewa_after_qamats_qatan_stays_silent(heb, surface, sbl, simple,
 
 
 # Phonetic: an inseparable proclitic prefix fused onto the masked Tetragrammaton
-# (לַיהוָה) is unstressed and must be hyphen-separated from the "Adonai"
-# substitute — la-Adonai, not the run-together, wrongly-stressed LAHAdonai.
+# (לַיהוָה) is unstressed and must be hyphen-separated from the reconstructed
+# "yah-WEH" — la-yah-WEH, not the run-together, wrongly-stressed LAHyah-WEH.
 PROCLITIC_DIVINE_NAME_CASES = [
-    ("לַיהוָה", "lah-Adonai", "lamed prefix (to the LORD)"),
-    ("בַּיהוָה", "bah-Adonai", "bet prefix (in the LORD)"),
-    ("וַיהוָה", "vah-Adonai", "vav prefix (and the LORD)"),
+    ("לַיהוָה", "lah-yah-WEH", "lamed prefix (to the LORD)"),
+    ("בַּיהוָה", "bah-yah-WEH", "bet prefix (in the LORD)"),
+    ("וַיהוָה", "vah-yah-WEH", "vav prefix (and the LORD)"),
 ]
 
 
@@ -279,8 +279,8 @@ def test_hebrew_phonetic_proclitic_before_divine_name(heb, surface, phonetic, wh
 
 def test_hebrew_phonetic_bare_divine_name_unchanged(heb):
     """The prefix fix must not disturb a standalone or space-separated name."""
-    assert heb.transliterate("יְהוָה", scheme=HScheme.PHONETIC) == "Adonai"
-    assert heb.transliterate("יְהוָה אֱלֹהִים", scheme=HScheme.PHONETIC) == "Adonai eh-loh-HEEM"
+    assert heb.transliterate("יְהוָה", scheme=HScheme.PHONETIC) == "yah-WEH"
+    assert heb.transliterate("יְהוָה אֱלֹהִים", scheme=HScheme.PHONETIC) == "yah-WEH eh-loh-HEEM"
 
 
 # Rule-based stress when no te'am is present (0.3.0). Hebrew default is ultima;
@@ -317,7 +317,7 @@ def test_hebrew_lexicon_alignment_with_divine_name(heb):
     """Per-word lexicon lookup must stay aligned when a masked Tetragrammaton
     sits between words."""
     out = heb.transliterate("יְהוָה אֱלֹהִים", scheme=HScheme.PHONETIC)
-    assert out == "Adonai eh-loh-HEEM", out
+    assert out == "yah-WEH eh-loh-HEEM", out
 
 
 def test_hebrew_lexicon_alignment_with_maqaf(heb):
@@ -349,10 +349,11 @@ def test_hebrew_three_schemes_produce_distinct_output(heb):
 def test_hebrew_divine_name_default_never_hybrid(heb):
     """The Tetragrammaton must never render as the qere-vowel hybrid yǝhwāh
     (the 'Jehovah' error). Default is the bare consonants per scheme; phonetic
-    speaks the qere 'Adonai'."""
+    gives the reconstructed pronunciation 'yah-WEH' (a reverent 'Adonai'/'Hashem'
+    reading is opt-in via ``divine_name_substitute``)."""
     assert heb.transliterate("יְהוָה", scheme=HScheme.SBL) == "yhwh"
     assert heb.transliterate("יְהוָה", scheme=HScheme.SIMPLE) == "yhvh"
-    assert heb.transliterate("יְהוָה", scheme=HScheme.PHONETIC) == "Adonai"
+    assert heb.transliterate("יְהוָה", scheme=HScheme.PHONETIC) == "yah-WEH"
     # The discredited hybrid must not appear in any scheme.
     for scheme in (HScheme.SBL, HScheme.SIMPLE, HScheme.PHONETIC):
         out = heb.transliterate("יְהוָה", scheme=scheme).lower()
@@ -362,7 +363,7 @@ def test_hebrew_divine_name_default_never_hybrid(heb):
 def test_hebrew_divine_name_in_context_preserves_neighbors(heb):
     """Masking/rendering must not disturb surrounding words or phonetic stress."""
     assert heb.transliterate("יְהוָה שָׁלוֹם", scheme=HScheme.SBL) == "yhwh šālôm"
-    assert heb.transliterate("יְהוָה שָׁלוֹם", scheme=HScheme.PHONETIC) == "Adonai shah-LOHM"
+    assert heb.transliterate("יְהוָה שָׁלוֹם", scheme=HScheme.PHONETIC) == "yah-WEH shah-LOHM"
 
 
 def test_hebrew_divine_name_substitution_opt_in():
