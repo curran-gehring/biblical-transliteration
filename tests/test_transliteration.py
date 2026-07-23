@@ -147,6 +147,47 @@ def test_hebrew_phonetic_patach_yod_diphthong(heb, surface, phonetic, why):
     assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
 
 
+# Consonantal vav bearing holam (וֹ) vs. holam male (mater lectionis).
+# A vav+holam whose preceding consonant already carries its own vowel is the
+# consonant /w/ (SBL) or /v/ (Simple/Phonetic) + an /ō/ vowel — עָוֹן ʿāwōn,
+# not the vav-dropping ʿāôn. U+05BA (holam haser FOR VAV) exists precisely to
+# mark this consonantal reading and is always consonantal by design.
+CONSONANTAL_VAV_HOLAM_CASES = [
+    # (surface, sbl, simple, phonetic, why)
+    ("עָוֹן",    "ʿāwōn",   "avon",   "ah-VOHN",
+     "qamats on ayin → the vav is a consonant + holam, not holam male (iniquity)"),
+    ("עֲוֹנוֹת", "ʿăwōnôṯ", "avonot", "a-voh-NOHT",
+     "hataf-qamats gives ayin a vowel → first vav consonantal; the second vav "
+     "(after a vowel-less nun) is a normal holam male mater"),
+    ("מִצְוֺת",  "miṣwōṯ",  "mitsvot", "mits-VOHT",
+     "U+05BA holam-haser-for-vav is unambiguously a consonantal vav by design"),
+]
+
+
+@pytest.mark.parametrize("surface,sbl,simple,phonetic,why", CONSONANTAL_VAV_HOLAM_CASES)
+def test_hebrew_consonantal_vav_holam(heb, surface, sbl, simple, phonetic, why):
+    assert heb.transliterate(surface, scheme=HScheme.SBL) == sbl, why
+    assert heb.transliterate(surface, scheme=HScheme.SIMPLE) == simple, why
+    assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
+
+
+# Negative controls: a vav+holam whose preceding consonant is vowel-less IS a
+# holam male mater and must remain a bare /ō/ (the fix must not regress these).
+HOLAM_MALE_MATER_CASES = [
+    ("שָׁלוֹם", "šālôm", "shalom", "shah-LOHM", "qamats sits on the shin, lamed is vowel-less → mater"),
+    ("גּוֹי",   "gôy",   "goy",    "GOHY",       "vowel-less gimel → mater (nation)"),
+    ("יוֹם",    "yôm",   "yom",    "YOHM",       "vowel-less yod → mater (day)"),
+    ("אוֹר",    "ʾôr",   "or",     "OHR",        "vowel-less aleph → mater (light)"),
+]
+
+
+@pytest.mark.parametrize("surface,sbl,simple,phonetic,why", HOLAM_MALE_MATER_CASES)
+def test_hebrew_holam_male_mater_unchanged(heb, surface, sbl, simple, phonetic, why):
+    assert heb.transliterate(surface, scheme=HScheme.SBL) == sbl, why
+    assert heb.transliterate(surface, scheme=HScheme.SIMPLE) == simple, why
+    assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
+
+
 # Rule-based stress when no te'am is present (0.3.0). Hebrew default is ultima;
 # segolates (final segol) and furtive-patach finals retract to the penult.
 STRESS_RULE_CASES = [
