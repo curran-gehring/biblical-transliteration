@@ -224,6 +224,27 @@ def test_hebrew_shewa_after_qamats_qatan_stays_silent(heb, surface, sbl, simple,
     assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
 
 
+# Phonetic: an inseparable proclitic prefix fused onto the masked Tetragrammaton
+# (לַיהוָה) is unstressed and must be hyphen-separated from the "Adonai"
+# substitute — la-Adonai, not the run-together, wrongly-stressed LAHAdonai.
+PROCLITIC_DIVINE_NAME_CASES = [
+    ("לַיהוָה", "lah-Adonai", "lamed prefix (to the LORD)"),
+    ("בַּיהוָה", "bah-Adonai", "bet prefix (in the LORD)"),
+    ("וַיהוָה", "vah-Adonai", "vav prefix (and the LORD)"),
+]
+
+
+@pytest.mark.parametrize("surface,phonetic,why", PROCLITIC_DIVINE_NAME_CASES)
+def test_hebrew_phonetic_proclitic_before_divine_name(heb, surface, phonetic, why):
+    assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
+
+
+def test_hebrew_phonetic_bare_divine_name_unchanged(heb):
+    """The prefix fix must not disturb a standalone or space-separated name."""
+    assert heb.transliterate("יְהוָה", scheme=HScheme.PHONETIC) == "Adonai"
+    assert heb.transliterate("יְהוָה אֱלֹהִים", scheme=HScheme.PHONETIC) == "Adonai e-loh-HEEM"
+
+
 # Rule-based stress when no te'am is present (0.3.0). Hebrew default is ultima;
 # segolates (final segol) and furtive-patach finals retract to the penult.
 STRESS_RULE_CASES = [

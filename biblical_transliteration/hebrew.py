@@ -515,10 +515,18 @@ class HebrewTransliterator:
                 while i < len(output) and (output[i].isalpha() or output[i] in 'ʾʿ'):
                     i += 1
                 if word_idx < len(formatted_words):
-                    rebuilt.append(formatted_words[word_idx])
+                    word = formatted_words[word_idx]
                     word_idx += 1
                 else:
-                    rebuilt.append(output[start:i])
+                    word = output[start:i]
+                # An inseparable prefix fused directly onto the masked divine
+                # name (לַיהוָה → la-Adonai) is proclitic: it carries no stress
+                # of its own and needs a separator before the substitute that is
+                # spliced in later. A space or maqaf between the two already
+                # supplies both, so this only fires on direct fusion.
+                if i < len(output) and output[i] == self._DIVINE_SENTINEL:
+                    word = word.lower() + '-'
+                rebuilt.append(word)
             else:
                 rebuilt.append(ch)
                 i += 1
