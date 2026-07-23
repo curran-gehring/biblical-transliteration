@@ -89,9 +89,9 @@ HEBREW_CONSONANTS = {
 HEBREW_VOWELS = {
     # Point: (SBL, Simple, Phonetic)
     '\u05B0': ('ǝ', 'e', 'e'),       # Shva — SBL turned-e U+01DD שְׁוָא (vocal shva)
-    '\u05B1': ('ĕ', 'e', 'e'),     # Hataf Segol חֲטַף סֶגּוֹל
-    '\u05B2': ('ă', 'a', 'a'),     # Hataf Patach חֲטַף פַּתָח
-    '\u05B3': ('ŏ', 'o', 'o'),     # Hataf Qamats חֲטַף קָמָץ
+    '\u05B1': ('ĕ', 'e', 'eh'),    # Hataf Segol חֲטַף סֶגּוֹל
+    '\u05B2': ('ă', 'a', 'ah'),    # Hataf Patach חֲטַף פַּתָח
+    '\u05B3': ('ŏ', 'o', 'oh'),    # Hataf Qamats חֲטַף קָמָץ
     '\u05B4': ('i', 'i', 'ee'),     # Hiriq חִירִיק
     '\u05B5': ('ē', 'e', 'ey'),     # Tsere צֵירֵי (phonetic 'ey' = tsere male; plain tsere → 'e' contextually)
     '\u05B6': ('e', 'e', 'e'),      # Segol סֶגּוֹל (short, like 'bed')
@@ -269,8 +269,11 @@ class HebrewTransliterator:
                 i += 1
                 continue
 
-            # Check if this is a mater lectionis (vowel letter to skip)
-            if self._is_mater_lectionis(chars, i):
+            # Check if this is a mater lectionis (vowel letter to skip), or --
+            # in Phonetic -- a diphthong glide yod folded into the preceding
+            # vowel digraph (ai / oy), which must not also emit a bare 'y'.
+            if (self._is_mater_lectionis(chars, i)
+                    or (is_phonetic and self._is_phonetic_diphthong_glide_yod(chars, i))):
                 i += 1
                 while i < len(chars) and self._is_combining_mark(chars[i]):
                     i += 1
@@ -316,7 +319,7 @@ class HebrewTransliterator:
                 # the known digraphs explicitly.
                 only_vowel = bool(unit_text) and (
                     all(c.lower() in 'aeiou' for c in unit_text)
-                    or unit_text.lower() in {'oh', 'ee', 'oo', 'ah', 'eh', 'ey'}
+                    or unit_text.lower() in {'oh', 'ee', 'oo', 'ah', 'eh', 'ey', 'oy', 'ai'}
                 )
                 if only_vowel and units and not units[-1][2]:
                     prev_text, prev_taam, _, prev_break, prev_vtag = units[-1]
@@ -710,9 +713,11 @@ class HebrewTransliterator:
                     # Special handling for qamats - distinguish qamats gadol (a) from qamats qatan (o)
                     if mark == '\u05B8' and self.options.handle_qamats_qatan:  # Qamats
                         if self._is_qamats_qatan(chars, index):
-                            # Qamats qatan = 'o' in all schemes per SBLHS;
-                            # ŏ is reserved for hataf qamats.
-                            vowel = 'o'
+                            # Qamats qatan = 'o' (SBL/Simple) per SBLHS; ŏ is
+                            # reserved for hataf qamats. Phonetic uses 'oh': the
+                            # modern Israeli reflex is the same /o/ as holam, and
+                            # bare word-final 'o' reads /oʊ/ anyway (KOHL, not KOL).
+                            vowel = 'oh' if self._scheme_index == 2 else 'o'
                     # Phonetic hiriq: long "ee" only when hiriq male (a yod mater
                     # follows, e.g. נָבִיא → nah-VEE). A bare/closed-syllable hiriq
                     # is short — render "i" so מִשְׁפָּט reads mish-PAHT, not
@@ -726,19 +731,30 @@ class HebrewTransliterator:
                     # eyn). (SBL/Simple keep their single value.)
                     if (mark == 'ֵ' and self._scheme_index == 2
                             and not self._followed_by_yod_mater(chars, index)):
-                        vowel = 'e'
-                    # Phonetic /ay/ diphthong: patach or qamats-gadol + a
+                        vowel = 'eh' if self._phonetic_open_syllable(chars, index) else 'e'
+                    # Phonetic /aj/ diphthong: patach or qamats-gadol + a
                     # syllable-closing consonantal yod is the glide (laylah →
-                    # LAY-lah, ḥay → KHAY, ʾadonai → a-doh-NAY, Sinai → see-NAY).
-                    # Emit the short "a" so the yod's "y" completes "ay"; the full
-                    # "ah" here mis-renders as "ahy" (LAHY). A yod with its own
-                    # vowel (bayit → BAH-yit) is excluded by
-                    # _followed_by_diphthong_yod(); qamats qatan (already 'o' via
-                    # the block above) is excluded so it never becomes "ay".
+                    # LAI-lah, ḥay → KHAI, ʾadonai → ah-doh-NAI, Sinai → see-NAI).
+                    # Emit the whole "ai" digraph here; the glide yod is skipped
+                    # in the main loop so it does not also spell a "y" ("aiy").
+                    # English word-final "-ai" cues /aɪ/ (Sinai, chai) where
+                    # "-ay" would misread as /eɪ/ (day). A yod with its own vowel
+                    # (bayit) is excluded by _followed_by_diphthong_yod(); qamats
+                    # qatan (already 'o' above) never diphthongizes.
                     if (mark in ('ַ', 'ָ') and self._scheme_index == 2
-                            and vowel != 'o'
+                            and not (mark == 'ָ' and self._is_qamats_qatan(chars, index))
                             and self._followed_by_diphthong_yod(chars, index)):
-                        vowel = 'a'
+                        vowel = 'ai'
+                    # Phonetic open-syllable "eh": segol and vocal shva read
+                    # /e/ (bed), but a bare English 'e' in an open syllable
+                    # reads /iː/ (me, she). Emit "eh" in open syllables; closed
+                    # syllables keep 'e' (BEN, SHEM). A vocal shva always opens
+                    # a syllable, so it is always "eh".
+                    if self._scheme_index == 2:
+                        if mark == '\u05B0':
+                            vowel = 'eh'
+                        elif mark == '\u05B6' and self._phonetic_open_syllable(chars, index):
+                            vowel = 'eh'
                     # Special handling for shva
                     if mark == '\u05B0':  # Shva
                         if self._is_vocal_shva(char, marks, chars, index):
@@ -777,6 +793,10 @@ class HebrewTransliterator:
                     holam = HEBREW_VOWELS['\u05B9'][self._scheme_index]  # o / o / oh
                     return consonant + holam
                 # Holam male: emit the plene o vowel only (the vav is silent).
+                # In Phonetic a following consonantal glide yod makes this the
+                # /oj/ diphthong (goy, oy) -- emit "oy"; the yod is then skipped.
+                if self._scheme_index == 2 and self._followed_by_diphthong_yod(chars, index):
+                    return 'oy'
                 return 'ô' if self._scheme_index == 0 else ('oh' if self._scheme_index == 2 else 'o')
             elif (has_dagesh
                     and not any('ְ' <= m <= 'ֻ' or m == 'ׇ' for m in marks)
@@ -809,12 +829,14 @@ class HebrewTransliterator:
                         break
                 
                 # Double consonant for dagesh forte (non-BeGaD KeFaT, or BeGaD KeFaT after vowel).
-                # In Simple/Phonetic, skip doubling when the consonant is a digraph
-                # (sh, ts, ch, etc.) — `shshamayim`/`tstsel` reads worse than the
-                # un-doubled form, and popular romanizations omit the gemination there.
-                # SBL keeps the doubling because its single-codepoint forms (š, ṣ) double cleanly.
+                # Simple skips doubling for digraphs (sh, ts) — `shshamayim`
+                # reads worse than the un-doubled form. Phonetic drops gemination
+                # ENTIRELY: modern Israeli Hebrew has no doubling, and a syllable-
+                # initial doubled cluster (shah-BBAHT, vah-YYOH-mer) is unreadable.
+                # SBL keeps the doubling because its single-codepoint forms (š, ṣ)
+                # double cleanly and academic transliteration marks the forte.
                 if char not in BEGADKEFAT or has_preceding_vowel:
-                    if self._scheme_index == 0 or len(consonant) == 1:
+                    if self._scheme_index == 0 or (self._scheme_index == 1 and len(consonant) == 1):
                         consonant = consonant + consonant
 
         # Handle furtive patach - patach under word-final guttural is pronounced BEFORE the consonant
@@ -839,7 +861,7 @@ class HebrewTransliterator:
                 # ('ah' in phonetic, 'a' in SBL/simple) so the would-
                 # have-been-emitted full vowel doesn't double-render
                 # at the tail of the consonant.
-                patach_emit = 'a'
+                patach_emit = 'ah' if self._scheme_index == 2 else 'a'
                 patach_full = HEBREW_VOWELS['\u05B7'][self._scheme_index]
                 vowels = [v for v in vowels if v != patach_full]
                 return patach_emit + consonant + ''.join(vowels)
@@ -858,7 +880,7 @@ class HebrewTransliterator:
             if is_word_final:
                 # See chet/ayin branch above — emit short 'a',
                 # filter the scheme's full patach value.
-                patach_emit = 'a'
+                patach_emit = 'ah' if self._scheme_index == 2 else 'a'
                 patach_full = HEBREW_VOWELS['\u05B7'][self._scheme_index]
                 vowels = [v for v in vowels if v != patach_full]
                 return patach_emit + consonant + ''.join(vowels)
@@ -907,6 +929,61 @@ class HebrewTransliterator:
             if 'ֱ' <= m <= 'ֻ' or m == 'ׇ':  # any real vowel point
                 return False
         return True
+
+    def _is_phonetic_diphthong_glide_yod(self, chars: list, index: int) -> bool:
+        """Phonetic only: is the yod at ``index`` the closing glide of an /aj/
+        or /oj/ diphthong (ḥay, laylah, goy)? Such a yod is folded into the
+        preceding vowel's digraph (ai / oy) and skipped, so it does not also
+        spell a bare 'y'. It must be a real consonantal glide (per
+        _followed_by_diphthong_yod) whose preceding vowel is patach /
+        qamats-gadol (/aj/) or holam (/oj/)."""
+        if self._scheme_index != 2 or chars is None or index is None:
+            return False
+        if index >= len(chars) or chars[index] != 'י':
+            return False
+        prev = None
+        for k in range(index - 1, -1, -1):
+            if self._is_hebrew(chars[k]):
+                prev = k
+                break
+            if not self._is_combining_mark(chars[k]):
+                return False  # word boundary before any consonant
+        if prev is None or not self._followed_by_diphthong_yod(chars, prev):
+            return False
+        prev_marks = [chars[m] for m in range(prev + 1, index)
+                      if self._is_combining_mark(chars[m])]
+        has_a = ('ַ' in prev_marks
+                 or ('ָ' in prev_marks and not self._is_qamats_qatan(chars, prev)))
+        has_o = ('ֹ' in prev_marks or 'ֺ' in prev_marks)
+        return has_a or has_o
+
+    def _phonetic_open_syllable(self, chars: list, index: int) -> bool:
+        """Phonetic only: does the consonant at ``index`` sit in an OPEN
+        syllable (its vowel not closed by a coda)? Picks "eh" vs "e" for
+        segol / plain tsere / vocal shva — a bare 'e' in an open syllable
+        misreads as /iː/ (me, she), so open syllables take "eh". A following
+        vowel-bearing consonant (or a mater / word end) leaves the syllable
+        open; a vowel-less coda (silent shva, bare final consonant) closes
+        it."""
+        if chars is None or index is None:
+            return True
+        j = index + 1
+        while j < len(chars) and self._is_combining_mark(chars[j]):
+            j += 1
+        if j >= len(chars) or not self._is_hebrew(chars[j]):
+            return True  # word-final CV, or a non-consonant follows -> open
+        if self._is_mater_lectionis(chars, j):
+            return True  # a mater vowel-letter (silent he, vav/yod) -> open
+        next_marks = []
+        k = j + 1
+        while k < len(chars) and self._is_combining_mark(chars[k]):
+            next_marks.append(chars[k])
+            k += 1
+        if any('\u05B1' <= m <= '\u05BB' or m == '\u05C7' for m in next_marks):
+            return True  # next consonant has a full vowel -> new syllable
+        if '\u05B0' in next_marks and self._is_vocal_shva(chars[j], next_marks, chars, j):
+            return True  # next consonant has a vocal shva -> new syllable
+        return False     # next consonant is a coda -> this syllable is closed
 
     def _prev_consonant_has_vowel(self, chars: list, index: int) -> bool:
         """Does the Hebrew consonant immediately before ``index`` (within the

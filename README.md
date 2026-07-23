@@ -40,7 +40,7 @@ Each transliterator supports three output styles via `TransliterationScheme`:
 | --- | --- | --- | --- |
 | `SBL` | `šālôm` | `logos` | Academic writing, scholarly publications, lexicon entries. Full SBL Handbook of Style diacritics. |
 | `SIMPLE` | `shalom` | `logos` | Reader-friendly Latin, no diacritics. Good for UI labels and casual contexts. |
-| `PHONETIC` | `shah-LOHM` | `LO-gos` | Pronunciation cues with syllable boundaries and stress (capitalized syllable). Hebrew is spelled for modern-Hebrew pronunciation, Greek for Erasmian (Mounce-style seminary) pronunciation. For learners and audio-aligned uses. |
+| `PHONETIC` | `shah-LOHM` | `LAH-gahs` | Pronunciation cues with syllable boundaries and stress (capitalized syllable). Hebrew is spelled for modern-Hebrew pronunciation, Greek for Erasmian (Mounce-style seminary) pronunciation. For learners and audio-aligned uses. |
 
 ## What this handles
 

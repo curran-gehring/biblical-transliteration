@@ -80,13 +80,13 @@ GREEK_CONSONANTS = {
 # Base vowels (without diacritics): (SBL, Simple, Phonetic/Koine)
 GREEK_VOWELS = {
     # Phonetic column = Erasmian (Mounce-style seminary) spelled for an American
-    # English reader: η→ay (obey), ι→ee, υ→oo, ο→o, ω→oh, α→ah, ε→eh.
+    # English reader: η→ay (obey), ι→ee, υ→oo, ο→ah (short /o/), ω→oh, α→ah, ε→eh.
     # Uppercase
     'Α': ('A', 'A', 'Ah'),
     'Ε': ('E', 'E', 'Eh'),
     'Η': ('Ē', 'E', 'Ay'),     # Eta - Erasmian long "ay" as in "obey"
     'Ι': ('I', 'I', 'Ee'),
-    'Ο': ('O', 'O', 'O'),
+    'Ο': ('O', 'O', 'Ah'),     # Omicron - Erasmian short /o/ ≈ American "ah"
     'Υ': ('Y', 'Y', 'Oo'),     # Upsilon - Erasmian /y/, English approx "oo"
     'Ω': ('Ō', 'O', 'Oh'),     # Omega - long "oh"
     # Lowercase
@@ -94,7 +94,7 @@ GREEK_VOWELS = {
     'ε': ('e', 'e', 'eh'),
     'η': ('ē', 'e', 'ay'),     # Eta - Erasmian long "ay" as in "obey"
     'ι': ('i', 'i', 'ee'),
-    'ο': ('o', 'o', 'o'),
+    'ο': ('o', 'o', 'ah'),     # Omicron - Erasmian short /o/ ≈ American "ah"
     'υ': ('y', 'y', 'oo'),     # Upsilon - Erasmian /y/, English approx "oo"
     'ω': ('ō', 'o', 'oh'),     # Omega - long "oh"
 }
@@ -113,7 +113,7 @@ DIPHTHONGS = [
     ('αυ', ('au', 'au', 'ow')),     # Erasmian /au/ → English "ow" (cow)
     ('ευ', ('eu', 'eu', 'ew')),     # Erasmian /eu/ → English "ew" (few)
     ('ου', ('ou', 'ou', 'oo')),     # Erasmian /ou/ → "oo"
-    ('ηυ', ('ēu', 'eu', 'ayoo')),   # SBLHS ēu; Erasmian "ay-oo"
+    ('ηυ', ('ēu', 'eu', 'ew')),     # SBLHS ēu; Erasmian ≈ ευ "ew" (few)
     # Uppercase versions
     ('Αι', ('Ai', 'Ai', 'Ai')),
     ('Ει', ('Ei', 'Ei', 'Ay')),
@@ -122,7 +122,7 @@ DIPHTHONGS = [
     ('Αυ', ('Au', 'Au', 'Ow')),
     ('Ευ', ('Eu', 'Eu', 'Ew')),
     ('Ου', ('Ou', 'Ou', 'Oo')),
-    ('Ηυ', ('Ēu', 'Eu', 'Ayoo')),
+    ('Ηυ', ('Ēu', 'Eu', 'Ew')),
     ('ΑΙ', ('AI', 'AI', 'AI')),
     ('ΕΙ', ('EI', 'EI', 'AY')),
     ('ΟΙ', ('OI', 'OI', 'OY')),
@@ -130,7 +130,7 @@ DIPHTHONGS = [
     ('ΑΥ', ('AU', 'AU', 'OW')),
     ('ΕΥ', ('EU', 'EU', 'EW')),
     ('ΟΥ', ('OU', 'OU', 'OO')),
-    ('ΗΥ', ('ĒU', 'EU', 'AYOO')),
+    ('ΗΥ', ('ĒU', 'EU', 'EW')),
 ]
 
 # Gamma nasals - γ before certain consonants
