@@ -336,6 +336,10 @@ class HebrewTransliterator:
         if is_phonetic and units:
             word_keys = self._hebrew_word_keys(hebrew_text)
             output = self._format_phonetic_with_stress(output, units, word_keys)
+            # A mappiq-he's audible /h/ collides with an h-final vowel digraph
+            # (qamats "ah", holam "oh", segol "eh"): הַלְלוּיָהּ → "YAHH", אֱלוֹהַּ
+            # → "ahh". No Hebrew sound is /hh/, so one 'h' represents both.
+            output = re.sub(r'([hH])\1+', r'\1', output)
 
         # Swap the divine-name sentinel for its final rendering last, so the
         # replacement text is immune to syllabification and stress markup.
@@ -724,7 +728,12 @@ class HebrewTransliterator:
                     # meesh-PAHT. (SBL/Simple keep their single 'i'.)
                     if (mark == 'ִ' and self._scheme_index == 2
                             and not self._followed_by_yod_mater(chars, index)):
-                        vowel = 'i'
+                        # Qere-perpetuum -ayi- (יְרוּשָׁלִַם): a hiriq stacked
+                        # under the same consonant as a patach/qamats reads /aji/;
+                        # insert a "y" glide so the a-vowel and i don't collide in
+                        # hiatus ("LAHIM" → "LAH-yim").
+                        stacked = 'ַ' in marks or 'ָ' in marks
+                        vowel = 'yi' if stacked else 'i'
                     # Phonetic tsere: plain tsere is modern /e/ (כֹּהֵן →
                     # koh-HEN, not koh-HEYN). Only tsere male — a yod mater
                     # follows — diphthongizes to "ey" (בֵּית → beyt, אֵין →
