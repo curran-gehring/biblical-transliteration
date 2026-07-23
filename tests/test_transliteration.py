@@ -147,6 +147,42 @@ def test_hebrew_phonetic_patach_yod_diphthong(heb, surface, phonetic, why):
     assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
 
 
+# A yod carrying its own dagesh (forte doubling, -iyyā-) or its own vowel is a
+# CONSONANT, not a mater lectionis. It was being dropped along with its vowel
+# because "yod after hiriq/tsere/segol" was treated as a mater unconditionally.
+# (SBL/Simple pinned exactly; phonetic only asserted to keep the yod — its exact
+# spelling is refined by the phonetic-pronunciation pass.)
+CONSONANTAL_YOD_CASES = [
+    # (surface, sbl, simple, why)
+    ("עֲלִיָּה",  "ʿăliyyāh",  "aliyyah",  "doubled yod + qamats → consonant, not dropped (aliyah)"),
+    ("אֵלִיָּהוּ", "ʾēliyyāhû", "eliyyahu", "doubled yod keeps -yah- (Elijah), was ʾēlîhû"),
+    ("צִיּוֹן",   "ṣiyyôn",    "tsiyyon",  "doubled yod → consonant (Zion), was ṣîôn"),
+]
+
+
+@pytest.mark.parametrize("surface,sbl,simple,why", CONSONANTAL_YOD_CASES)
+def test_hebrew_consonantal_yod_not_dropped(heb, surface, sbl, simple, why):
+    assert heb.transliterate(surface, scheme=HScheme.SBL) == sbl, why
+    assert heb.transliterate(surface, scheme=HScheme.SIMPLE) == simple, why
+    assert "y" in heb.transliterate(surface, scheme=HScheme.PHONETIC).lower(), why
+
+
+# Negative controls: a bare yod that only lengthens the preceding vowel (hiriq
+# male, tsere male) IS a mater and must still be absorbed, not emitted.
+MATER_YOD_CONTROL_CASES = [
+    ("נָבִיא",     "nāḇîʾ",    "navi",     "hiriq male (prophet) → yod absorbed"),
+    ("עִיר",       "ʿîr",      "ir",       "hiriq male (city) → yod absorbed"),
+    ("בְּרֵאשִׁית", "bǝrēʾšîṯ", "bereshit", "hiriq male mid-word → yod absorbed"),
+    ("בֵּית",      "bêṯ",      "bet",      "tsere male (house-construct) → yod absorbed"),
+]
+
+
+@pytest.mark.parametrize("surface,sbl,simple,why", MATER_YOD_CONTROL_CASES)
+def test_hebrew_mater_yod_still_absorbed(heb, surface, sbl, simple, why):
+    assert heb.transliterate(surface, scheme=HScheme.SBL) == sbl, why
+    assert heb.transliterate(surface, scheme=HScheme.SIMPLE) == simple, why
+
+
 # Consonantal vav bearing holam (וֹ) vs. holam male (mater lectionis).
 # A vav+holam whose preceding consonant already carries its own vowel is the
 # consonant /w/ (SBL) or /v/ (Simple/Phonetic) + an /ō/ vowel — עָוֹן ʿāwōn,
