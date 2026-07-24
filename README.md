@@ -59,6 +59,13 @@ Each transliterator supports three output styles via `TransliterationScheme`:
 - The Tetragrammaton is never rendered as the qere-vowel hybrid (`yǝhwāh`,
   the "Jehovah" error) — bare consonants by default (a reconstructed `yah-WEH`
   in Phonetic), or a reverent substitute of your choice (`Adonai`, `Hashem`, …)
+- Chet (ח) renders as `ḥ` (an *h* with an under-dot) in every scheme —
+  including Phonetic. It is a throaty, constricted-throat *h* (the voiceless
+  pharyngeal fricative, as in *Hanukkah* or Arabic ح), deliberately **not**
+  `kh`: that velar spelling belongs to soft Kaf (כ, /x/) — the two merge only
+  in Modern Israeli — and it misreads toward a hard /k/. `ḥ` is the only
+  diacritic in the otherwise ASCII Phonetic scheme; when a syllable is stressed
+  it upper-cases to `Ḥ` (e.g. חֵן → `Ḥen`, רוּחַ → `ROO-ahḥ`).
 - Maqaf, meteg, sof pasuq
 
 **Koine Greek** (~800 lines of rules):

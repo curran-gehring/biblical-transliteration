@@ -63,7 +63,7 @@ HEBREW_CONSONANTS = {
     '\u05D4': ('h', 'h', 'h'),     # He ה
     '\u05D5': ('w', 'v', 'v'),     # Vav ו
     '\u05D6': ('z', 'z', 'z'),     # Zayin ז
-    '\u05D7': ('ḥ', 'ḥ', 'kh'),    # Chet ח → 'kh' phonetic (English 'ch'=/tʃ/ is wrong); SBL/Simple keep ḥ
+    '\u05D7': ('ḥ', 'ḥ', 'ḥ'),     # Chet ח → 'ḥ' (dotted h) in EVERY scheme: throaty/pharyngeal 'h', NOT the velar 'kh' of soft Kaf (they merge only in Modern Israeli) and NOT English 'ch'=/tʃ/. The under-dot marks the constricted-throat 'h'.
     '\u05D8': ('ṭ', 't', 't'),     # Tet ט
     '\u05D9': ('y', 'y', 'y'),     # Yod י
     '\u05DA': ('k', 'kh', 'kh'),   # Final Kaf ך

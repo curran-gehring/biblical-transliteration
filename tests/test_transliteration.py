@@ -44,7 +44,7 @@ def grk():
 # uppercased. Stress comes from te'amim when present; otherwise ultima default.
 # Phonetic column = modern-Hebrew-for-American-English-readers: qamats/patach→ah,
 # holam & qamats-qatan→oh, qibbuts/shuruk→oo, hiriq male→ee / closed hiriq→i,
-# chet→kh; segol/plain-tsere/vocal-shva→"eh" open but "e" closed; tsere male→ey;
+# chet→ḥ; segol/plain-tsere/vocal-shva→"eh" open but "e" closed; tsere male→ey;
 # /aj/→ai (Sinai), /oj/→oy; hataf vowels→full ah/eh/oh; gemination dropped;
 # stressed syllable upper-cased (te'am or ultima).
 HEBREW_CASES = [
@@ -54,8 +54,8 @@ HEBREW_CASES = [
      "Word-initial vocal shewa; ayin dropped in Simple/Phonetic; patach → ah"),
     ("כָּל־",       "kol-",    "kol-",    "KOHL-",
      "Qamats qatan before maqaf"),
-    ("חָכְמָה",     "ḥoḵmāh",  "ḥokhmah", "khohkh-MAH",
-     "Polysyllabic qamats qatan; chet → kh in Phonetic; ultima default"),
+    ("חָכְמָה",     "ḥoḵmāh",  "ḥokhmah", "ḥohkh-MAH",
+     "Polysyllabic qamats qatan; chet → ḥ in Phonetic; ultima default"),
     ("מֶלֶךְ",      "meleḵ",   "melekh",  "MEH-lekh",
      "Final kaf without dagesh = ḵ in SBL academic; segolate (final segol) → penult even with no te'am"),
     ("שָׁלוֹם",     "šālôm",   "shalom",  "shah-LOHM",
@@ -99,16 +99,16 @@ def test_hebrew_phonetic_hiriq_length(heb, surface, phonetic, why):
     assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
 
 
-# Phonetic chet (0.2.7): ḥet → "kh", never English "ch" (which reads /tʃ/).
+# Phonetic chet (0.2.7): ḥet → "ḥ" (dotted h), never "kh" or English "ch" (which reads /tʃ/).
 CHET_CASES = [
-    ("רוּחַ",   "ROO-ahkh",   "furtive-patach chet → kh, and furtive → penult stress (spirit)"),
-    ("חָכְמָה", "khohkh-MAH", "initial chet → kh (wisdom)"),
-    ("מָשִׁיחַ", "mah-SHEE-ahkh", "final furtive chet → kh, furtive → penult (messiah)"),
+    ("רוּחַ",   "ROO-ahḥ",   "furtive-patach chet → ḥ, and furtive → penult stress (spirit)"),
+    ("חָכְמָה", "ḥohkh-MAH", "initial chet → ḥ (wisdom)"),
+    ("מָשִׁיחַ", "mah-SHEE-ahḥ", "final furtive chet → ḥ, furtive → penult (messiah)"),
 ]
 
 
 @pytest.mark.parametrize("surface,phonetic,why", CHET_CASES)
-def test_hebrew_phonetic_chet_is_kh(heb, surface, phonetic, why):
+def test_hebrew_phonetic_chet_is_h_dot(heb, surface, phonetic, why):
     assert heb.transliterate(surface, scheme=HScheme.PHONETIC) == phonetic, why
     assert "ch" not in heb.transliterate(surface, scheme=HScheme.PHONETIC), why
 
@@ -134,7 +134,7 @@ def test_hebrew_phonetic_tsere_context(heb, surface, phonetic, why):
 # onset (ba-YIT), NOT a glide, and must be left untouched.
 PATACH_YOD_DIPHTHONG_CASES = [
     ("לַיְלָה",  "LAI-lah",     "patach + silent-shva yod → ay (night), not LAHY-lah"),
-    ("חַי",     "KHAI",        "patach + word-final yod → ay (living), not KHAHY"),
+    ("חַי",     "ḤAI",        "patach + word-final yod → ay (living), not KHAHY"),
     ("אֲדֹנָי", "ah-doh-NAI",   "patach + final yod → ay (Lord), not a-doh-NAHY"),
     ("סִינַי",  "see-NAI",     "patach + final yod → ay (Sinai), not see-NAHY"),
     ("גַּיְא",   "GAI",         "patach + yod + silent alef → ay (valley), not GAHY"),
@@ -249,7 +249,7 @@ def test_hebrew_holam_male_mater_unchanged(heb, surface, sbl, simple, phonetic, 
 # Negative controls: qamats qatan (short o) → the following shewa stays SILENT
 # (closed syllable). The fix must not make these vocal.
 SHEWA_AFTER_QAMATS_QATAN_CASES = [
-    ("חָכְמָה", "ḥoḵmāh", "ḥokhmah", "khohkh-MAH", "qamats qatan (wisdom) → silent shewa"),
+    ("חָכְמָה", "ḥoḵmāh", "ḥokhmah", "ḥohkh-MAH", "qamats qatan (wisdom) → silent shewa"),
     ("אָכְלָה", "ʾoḵlāh", "okhlah",  "ohkh-LAH",   "qamats qatan (food) → silent shewa"),
     ("קָדְשִׁי", "qoḏšî",  "qodshi",  "kohd-SHEE",  "qamats qatan (my holiness) → silent shewa"),
 ]
@@ -289,7 +289,7 @@ STRESS_RULE_CASES = [
     ("מֶלֶךְ",  "MEH-lekh",   "segolate final segol → penult (king)"),
     ("סֵפֶר",   "SEH-fer",    "segolate final segol → penult (book)"),
     ("בֹּקֶר",  "BOH-ker",   "segolate final segol → penult (morning)"),
-    ("רוּחַ",   "ROO-ahkh",   "furtive patach → penult (spirit)"),
+    ("רוּחַ",   "ROO-ahḥ",   "furtive patach → penult (spirit)"),
     ("שָׁלוֹם", "shah-LOHM", "non-segolate → ultima default (peace)"),
     ("דָּבָר",  "dah-VAHR",  "non-segolate → ultima default (word)"),
 ]
@@ -426,7 +426,7 @@ def test_hebrew_legit_qamats_qatan_still_detected(heb):
 # /aj/ and /oj/ diphthongs use the "-ai" / "-oy" glide (Sinai, boy), NOT "-ay"
 # (English reads final "-ay" as /eɪ/, "day"). "ai" applies word-medially too.
 PHONETIC_DIPHTHONG_CASES = [
-    ("חַי",     "KHAI",      "word-final /aj/ → ai (chai)"),
+    ("חַי",     "ḤAI",      "word-final /aj/ → ai (chai)"),
     ("אֲדֹנָי", "ah-doh-NAI", "final /aj/ → ai (Adonai)"),
     ("לַיְלָה",  "LAI-lah",   "MEDIAL /aj/ → ai too (laylah)"),
     ("גּוֹי",   "GOY",       "/oj/ → oy (goy)"),
@@ -473,8 +473,8 @@ def test_phonetic_drops_gemination(heb):
 def test_phonetic_hataf_qatan_and_furtive(heb):
     assert heb.transliterate("אֱלֹהִים", scheme=HScheme.PHONETIC) == "eh-loh-HEEM"  # hataf-segol
     assert heb.transliterate("אֲדֹנָי", scheme=HScheme.PHONETIC) == "ah-doh-NAI"    # hataf-patach
-    assert heb.transliterate("חָכְמָה", scheme=HScheme.PHONETIC) == "khohkh-MAH"    # qamats qatan → oh
-    assert heb.transliterate("רוּחַ", scheme=HScheme.PHONETIC) == "ROO-ahkh"        # furtive → ah
+    assert heb.transliterate("חָכְמָה", scheme=HScheme.PHONETIC) == "ḥohkh-MAH"    # qamats qatan → oh
+    assert heb.transliterate("רוּחַ", scheme=HScheme.PHONETIC) == "ROO-ahḥ"        # furtive → ah
 
 
 # Greek: omicron → "ah" (Erasmian short /o/ ≈ American "ah"); ηυ → "ew".
@@ -694,6 +694,6 @@ def test_hebrew_maqaf_is_word_boundary(heb):
     assert heb.transliterate("הוּא־לִי", scheme=HScheme.SIMPLE) == "hu-li"
     assert heb.transliterate("נָא־", scheme=HScheme.SBL) == "nāʾ-"
     # furtive patach is word-final even before maqaf
-    assert heb.transliterate("רוּחַ־", scheme=HScheme.PHONETIC) == "ROO-ahkh-"
+    assert heb.transliterate("רוּחַ־", scheme=HScheme.PHONETIC) == "ROO-ahḥ-"
     # closed syllable before maqaf still reads qatan
     assert heb.transliterate("אֶת־כָּל־", scheme=HScheme.SBL) == "ʾeṯ-kol-"
